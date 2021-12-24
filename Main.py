@@ -1480,7 +1480,7 @@ async def _Case(ctx, Code):
 
 
     
-Client.run('OTA0NDUwODE0NjE2MTQxODI1.YX7tdg.f9kR32IFT7-AY9q2bm3qnkhEQt8') 
+Client.run('OTIzOTg1MjU2NjExMjA5Mjc2.YcX-Uw.mDWA48vkeEMxPHPq3DGcoLDHdV0') 
 
 
 
