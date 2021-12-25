@@ -323,6 +323,10 @@ async def _Help(ctx):
 
 `,Ban [User] [Reason] [Evidence]`
 
+`,Unban [User] [Reason] [Evidence]`
+
+`,SoftBan [User] [Reason]` (WIP) 
+
 `,Kick [User] [Reason] [Evidence]`
 
 `,Purge [Amount]`
@@ -818,12 +822,12 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
             await MissingPermission(ctx, ctx.author)
         else:
             print(User)
-            Embed = discord.Embed(title="Member Was Banned Successfuly")
+            Embed = discord.Embed(title="Ban System")
             Embed.add_field(name=f'__**{User}**__ was banned successfuly because of: ', value=f'{Reason}', inline=False)
-            Embed.set_author(name='Ban Command', icon_url=User.avatar_url)
+            Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar_url)
             Embed.set_thumbnail(url=User.avatar_url)
             Embed.set_footer(text=f'Banned by {ctx.author}.', icon_url=ctx.author.avatar_url)
-            await ctx.channel.send(embed=Embed)    
+            await ctx.channel.send(embed=Embed)
 
             await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
             database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
@@ -1300,6 +1304,42 @@ async def _Lock(ctx, Channel: discord.TextChannel, Amount: int, *,Reason):
             await Channel.send(embed=Embed)
     else:
         await MissingPermission(ctx, ctx.author)
+
+
+
+@Client.command(aliases = ['Unban'], pass_context=True)
+async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    User = await Client.fetch_user(Member.id) 
+    Time = f'{current_Date}, {current_time}'
+
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        banned_members = await ctx.guild.bans()
+        for ban_entry in banned_members:
+            user = ban_entry.user
+            if user.id == User.id:
+                await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
+                Embed = discord.Embed(title="Ban System")
+                Embed.add_field(name=f'__**{User}**__ was unbanned successfuly with the reason: ', value=f'{Reason}', inline=False)
+                Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar_url)
+                Embed.set_thumbnail(url=User.avatar_url)
+                Embed.set_footer(text=f'Unbanned by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                await ctx.channel.send(embed=Embed)
+                await ctx.guild.unban(user)
+            elif User not in banned_members:
+                Embed2 = discord.Embed(title="Ban System")
+                Embed2.add_field(name=f'__**{User}**__ can not be unbanned because he wasn not banned in the first place.', value=f'{Reason}', inline=False)
+                Embed2.set_author(name=f'{User} ({User.id})', icon_url=User.avatar_url)
+                Embed2.set_thumbnail(url=User.avatar_url)
+                Embed2.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                await ctx.channel.send(embed=Embed2)
 
 
 
