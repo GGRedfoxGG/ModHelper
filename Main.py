@@ -345,6 +345,8 @@ async def _Help(ctx):
             
 `,Mute [User] [Amount/Perm] [Reason]` (WIP)
 
+`,Lock [Channel] [Time] [Reason]`
+
 `,Unmute [User]` (WIP)
             
             ''', inline=False)
@@ -1266,6 +1268,38 @@ async def _Rule(ctx):
     await ctx.author.send(embed=Main)
 
 
+@Client.command(aliases = ['Lock', 'LockChannel'], pass_context=True)
+async def _Lock(ctx, Channel: discord.TextChannel, Amount: int, *,Reason):
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    Time = f'{current_Date}, {current_time}'
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        if Amount <=9:
+            Close_Embed = discord.Embed(title="Lock System", description=f'The minutes picked is too short, please use 10 seconds or more.', color=0xe67e22)
+            Close_Embed.set_footer(text=f'You should contact a system developer if you think this is a mistake.', icon_url=ctx.author.avatar_url)
+            await ctx.send(embed=Close_Embed)
+        else:
+            Final_Embed = discord.Embed(title="Lock System", description=f'<#{Channel.id}> was locked for {Amount} seconds.', color=0x546e7a)
+            Final_Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            await Logging(ctx, ctx.message.content,ctx.author, ctx.author, f"Affected channel is <#{Channel.id}> for {Amount} seconds with the reason: {Reason}", ctx.channel)
+            overwrite = Channel.overwrites_for(ctx.guild.default_role)
+            overwrite.send_messages = False
+            await Channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+            await Channel.send(embed=Final_Embed)
+            time.sleep(Amount)
+            Embed = discord.Embed(title="Lock System", description=f'<#{Channel.id}> was unlocked.', color=0x546e7a)
+            Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            overwrite2 = Channel.overwrites_for(ctx.guild.default_role)
+            overwrite2.send_messages = True
+            await Channel.set_permissions(ctx.guild.default_role, overwrite=overwrite2)
+            await Channel.send(embed=Embed)
+    else:
+        await MissingPermission(ctx, ctx.author)
 
 
 
