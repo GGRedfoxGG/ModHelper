@@ -325,7 +325,9 @@ async def _Help(ctx):
 
 `,Unban [User] [Reason] [Evidence]`
 
-`,SoftBan [User] [Reason]` (WIP) 
+`,SoftBan [User] [Reason]` 
+
+`,Nick [User] [Name]`
 
 `,Kick [User] [Reason] [Evidence]`
 
@@ -366,7 +368,11 @@ async def _Help(ctx):
 
 `,Announce [Channel] [Mode = Everyone/Here/None] [Title] [Announcement]`
 
+`,Ticket`
+
 `,Time`
+
+`,ServerInfo`
 
 `,User [User]`
 
@@ -1117,7 +1123,7 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
 
 
 @Client.command(aliases = ['Clearwarnings', 'Clr', 'Clear'],  pass_context=True)
-async def _ClearWarmomgs(ctx, Member: discord.Member, *, Reason):
+async def _ClearWarnings(ctx, Member: discord.Member, *, Reason):
     
     Selected_Code = "SELECT UserID FROM Warning_Logs"
     Cursor.execute(Selected_Code)
@@ -1178,7 +1184,9 @@ async def _User(ctx, Member: Union[discord.Member,discord.Object]):
 User Id: {Member.id}
 User Tag: {MemberTag}
 User: <@{Member.id}>
-Joined: {records0[0]}
+Status: {Member.activity}
+Nickname: {Member.display_name}
+Joined: {Member.joined_at} UCT
 ''', inline=False)
 
         Main.set_author(name=f'{Member.id}', icon_url=MemberTag.avatar_url)
@@ -1333,6 +1341,7 @@ async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
                 Embed.set_footer(text=f'Unbanned by {ctx.author}.', icon_url=ctx.author.avatar_url)
                 await ctx.channel.send(embed=Embed)
                 await ctx.guild.unban(user)
+                break
             elif User not in banned_members:
                 Embed2 = discord.Embed(title="Ban System")
                 Embed2.add_field(name=f'__**{User}**__ can not be unbanned because he wasn not banned in the first place.', value=f'{Reason}', inline=False)
@@ -1340,10 +1349,108 @@ async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
                 Embed2.set_thumbnail(url=User.avatar_url)
                 Embed2.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
                 await ctx.channel.send(embed=Embed2)
+                break
+    else:
+        await MissingPermission(ctx, ctx.author)
 
+@Client.command(aliases = ['Nick', 'Nickname', 'Name'], pass_context=True)
+async def _Nick(ctx, Member: Union[discord.Member,discord.Object],*,Nick):
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    User = await Client.fetch_user(Member.id) 
+    Time = f'{current_Date}, {current_time}'
+
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        await Logging(ctx, ctx.message.content,ctx.author, User, f'Nickname is now changed to: {Nick}', ctx.channel)
+        await Member.edit(nick=Nick)
+        Embed = discord.Embed(title="Nickname System")
+        Embed.add_field(name=f'__**{User}**__ username was successfuly changed to ', value=f'{Nick}', inline=False)
+        Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar_url)
+        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        await ctx.send(embed=Embed)
+    else:
+        await MissingPermission(ctx, ctx.author)
+
+
+@Client.command(aliases = ['Softban', 'Sb','Sban'],  pass_context=True)
+async def _SoftBan(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    Time = f'{current_Date}, {current_time}'
 
 
     
+    Selected_Code = "SELECT Thing FROM Strike_Code"
+    Cursor.execute(Selected_Code)
+    records = Cursor.fetchall()
+    Number = 0
+    for record in records:
+        Number = Number + 1
+    Number = Number + 1
+    Type = 'Soft Ban'
+    Code1 = random.randint(0,999999999999999999)
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+    User = await Client.fetch_user(Member.id) 
+
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        await RoleChecker(ctx, Member)
+        Result = await RoleChecker(ctx, Member)
+        In_Group2 = Result
+        if In_Group2==True:
+            await MissingPermission(ctx, ctx.author)
+        else:
+            Embed = discord.Embed(title="Soft Ban System")
+            Embed.add_field(name=f'__**{User}**__ was soft banned successfuly for: ', value=f'{Reason}', inline=False)
+            Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar_url)
+            Embed.set_thumbnail(url=User.avatar_url)
+            Embed.set_footer(text=f'Soft Banned by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            await ctx.channel.send(embed=Embed)
+
+            await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
+            database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
+            database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
+            Database.commit()
+            await ctx.guild.ban(User,reason=Reason, delete_message_days=7)
+            await ctx.guild.unban(User)
+    else:
+        await MissingPermission(ctx, ctx.author)
+
+
+@Client.command(aliases = ['ServerInfo', 'Sinfo'],  pass_context=True)
+async def _ServerInfo(ctx):
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
+    Number2 = 1
+    Number3 = 1
+    for Channels in ctx.guild.channels:
+        Number2 = Number2 + 1
+    for Roles in ctx.guild.roles:
+        Number3 = Number3 + 1
+    Embed = discord.Embed(title="Server Information")
+    Embed.add_field(name=f'Server is owned by: ', value=f'{ctx.guild.owner}/{ctx.guild.owner_id}/<@{ctx.guild.owner_id}>', inline=False)
+    Embed.add_field(name=f'The server region is: ', value=f'{ctx.guild.region}', inline=False)
+    Embed.add_field(name=f'The server description: ', value=f'{ctx.guild.description}', inline=False)
+    Embed.add_field(name=f'The server default notifications: ', value=f'{ctx.guild.default_notifications}', inline=False)
+    Embed.add_field(name=f'Amount of members in the guild: ', value=f'{ctx.guild.member_count}', inline=False)
+    Embed.add_field(name=f'Amount of channels in the guild: ', value=f'{Number2}', inline=False)
+    Embed.add_field(name=f'Amount of roles in the guild: ', value=f'{Number3}', inline=False)
+    Embed.add_field(name=f'The server max presences: ', value=f'{ctx.guild.max_presences}', inline=False)
+    Embed.add_field(name=f'The server verification level: ', value=f'{ctx.guild.verification_level}', inline=False)
+    Embed.add_field(name=f'The server AFK channel is: ', value=f'{ctx.guild.afk_channel}', inline=False)
+    Embed.set_author(name=f'{ctx.guild.name} ({ctx.guild.id})', icon_url=ctx.guild.icon_url)
+    Embed.set_thumbnail(url=ctx.guild.icon_url)
+    Embed.set_footer(text=f'Requested {ctx.author}.', icon_url=ctx.author.avatar_url)
+    await ctx.send(embed=Embed)
+
 Client.run('OTIzOTg1MjU2NjExMjA5Mjc2.YcX-Uw.mDWA48vkeEMxPHPq3DGcoLDHdV0') 
 
 
