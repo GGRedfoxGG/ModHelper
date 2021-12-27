@@ -345,15 +345,15 @@ async def _Help(ctx):
 
 `,Appeal [Stirke Code] [Title] [Appeal]`
 
-`,Defean [User] [Reason]` (WIP)
+`,Defean [User] [Reason]`
 
-`,Undefean [User] [Reason]` (WIP)
+`,Undefean [User] [Reason]` 
             
 `,Mute [User] [Amount/Perm] [Reason]` (WIP)
 
-`,Lock [Channel] [Time] [Reason]`
-
 `,Unmute [User]` (WIP)
+
+`,Lock [Channel] [Time] [Reason]`
             
             ''', inline=False)
             Moderation.set_footer(text=f' Page 2/5', icon_url=ctx.author.avatar_url)
@@ -395,7 +395,8 @@ async def _Help(ctx):
             Fun.set_thumbnail(url=ctx.author.avatar_url)
             Fun.add_field(name='Fun: ', value='''
 
-`None`
+`,Rps`
+
 
             
             ''', inline=False)
@@ -410,6 +411,8 @@ async def _Help(ctx):
             Misc.add_field(name='Misc: ', value='''
 
 `,Ping`
+
+`,RandomNumber [First number] [Second number]`
 
             
             ''', inline=False)
@@ -1450,6 +1453,75 @@ async def _ServerInfo(ctx):
     Embed.set_thumbnail(url=ctx.guild.icon_url)
     Embed.set_footer(text=f'Requested {ctx.author}.', icon_url=ctx.author.avatar_url)
     await ctx.send(embed=Embed)
+
+
+@Client.command(aliases = ['Rps'],  pass_context=True)
+async def _RPS(ctx):
+    Number = random.randint(1,3)
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
+    if Number == 1:
+        await ctx.send('Rock')
+    elif Number == 2:
+        await ctx.send('Paper')
+    elif Number == 3:
+        await ctx.send('Scissors')
+
+@Client.command(aliases = ['RandomNumber', 'Rn', 'RandomN'],  pass_context=True)
+async def _RandomNumber(ctx, First_Number: int, Second_Number:int):
+    if First_Number >= Second_Number:
+        await ctx.send('First number should be less than the second number, e.g: 1 to 6')
+    else:
+        Number = random.randint(First_Number,Second_Number)
+        await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F'Random number: {Number}', ctx.channel)
+        await ctx.send(Number)
+    
+
+@Client.command(aliases = ['Deaf', 'VoiceDeafen', 'Deafen'], pass_context=True)
+async def _Deafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason):
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    Time = f'{current_Date}, {current_time}'
+    Code1 = random.randint(0,999999999999999999)
+    Type = 'Deafen'
+    Selected_Code = "SELECT Thing FROM Strike_Code"
+    Cursor.execute(Selected_Code)
+    records = Cursor.fetchall()
+    User = await Client.fetch_user(Member.id)
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
+        Embed = discord.Embed(title="Deafen System")
+        Embed.add_field(name=f'__**{Member}**__ was successfuly voice deafened and muted.', value=f'Reason: {Reason}', inline=False)
+        Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar_url)
+        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
+        database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
+        await ctx.send(embed=Embed)
+        await Member.edit(deafen = True)
+        await Member.edit(mute = True)
+
+
+@Client.command(aliases = ['Undeaf', 'UnVoiceDeafen', 'UnDeafen'], pass_context=True)
+async def _Undeafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason):
+    User = await Client.fetch_user(Member.id)
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
+        Embed = discord.Embed(title="Deafen System")
+        Embed.add_field(name=f'__**{Member}**__ was successfuly voice undeafened and unmuted.',value=f'Reason: {Reason}', inline=False)
+        Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar_url)
+        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        await ctx.send(embed=Embed)
+        await Member.edit(deafen = False)
+        await Member.edit(mute = False)
 
 Client.run('OTIzOTg1MjU2NjExMjA5Mjc2.YcX-Uw.mDWA48vkeEMxPHPq3DGcoLDHdV0') 
 
