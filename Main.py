@@ -1523,7 +1523,7 @@ async def _Undeafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason)
         await Member.edit(deafen = False)
         await Member.edit(mute = False)
 
-Client.run('OTIzOTg1MjU2NjExMjA5Mjc2.YcX-Uw.mDWA48vkeEMxPHPq3DGcoLDHdV0') 
+Client.run('OTI1NTQ1MjkxNTMxMzA0OTYw.YcurOQ.u4NkEE8jgXhFEzBDs_mQEwIb-S4') 
 
 
 
