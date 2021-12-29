@@ -616,9 +616,9 @@ async def _ticket(ctx):
     ]
     Report_Buttons = [
         [
-        Button(style=ButtonStyle.green, label='Bug Report', custom_id='Bug Report'),
+        Button(style=ButtonStyle.green, label='Scam Ticket', custom_id='Scam Ticket'),
         Button(style=ButtonStyle.green, label='Suggestion', custom_id='Suggestion'),
-        Button(style=ButtonStyle.green, label='Moderation', custom_id='Moderation'),
+        Button(style=ButtonStyle.green, label='User Report', custom_id='User Report'),
         Button(style=ButtonStyle.green, label='General', custom_id='General'),
         Button(style=ButtonStyle.red, label='Staff Report', custom_id='Staff Report'),
         ]
