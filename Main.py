@@ -80,9 +80,9 @@ class database:
 
 @Client.event
 async def on_ready():
-    await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = " TM's Community"))
+    await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = " The Elite Developers"))
     print('Client finished setting up')
-    guild = Client.get_guild(923982879082561627)
+    guild = Client.get_guild(697064724893794314)
     for black in Blacklisted:
         User = await Client.fetch_user(black)
         print(User)
@@ -102,20 +102,6 @@ async def on_member_join(Member):
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
     Time = f'{current_Date}, {current_time}'
-    Channel = Client.get_channel(923990187812474900)
-
-    Embed = discord.Embed(title="Member Joined", description=f'<@{Member.id}> joined our awesome community.', color=0x00ff00)
-    Embed.add_field(name='Date of Assignation:', value=f'{Time}', inline=False)
-    Embed.set_author(name='Welcome to TM Community', icon_url=Member.avatar_url)
-    Embed.set_thumbnail(url=Member.avatar_url)
-
-    Embed2 = discord.Embed(title="Welcome to TMFaisal's Discord Community", description=f'Please check our information and join the group. Also do not forget to invite a friend if you like it here!')
-    Embed2.add_field(name='Information:', value='Our main [Discord](https://discord.gg/mfJ3UhXAJg)', inline=False)
-    Embed2.set_author(name='Official TMFaisal Discord Community', icon_url=Member.avatar_url)
-    Embed2.set_thumbnail(url=Member.avatar_url)
-
-    await Channel.send(embed=Embed)
-    await Member.send(embed=Embed2)
     database.execute("INSERT INTO Users (UserID, Time) VALUES (?, ?)", (Member.id, Time))
     Database.commit()
 
@@ -125,7 +111,7 @@ async def on_command_error(ctx, error):
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
-    Channel = Client.get_channel(923989641160454174)
+    Channel = Client.get_channel(925548301531643904)
     Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
     Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar_url)
     Embed.set_thumbnail(url=ctx.author.avatar_url)
@@ -139,13 +125,13 @@ async def on_command_error(ctx, error):
 
 async def RoleChecker(ctx, User):
 
-    guild = Client.get_guild(923982879082561627)
+    guild = Client.get_guild(697064724893794314)
     role1 = [
-        discord.utils.get(guild.roles, id=923986255933480960), #Developer
-        discord.utils.get(guild.roles, id=923984807095058442), #Founder
-        discord.utils.get(guild.roles, id=923985905570680872), #CM
-        discord.utils.get(guild.roles, id=923985832338157608), #Trusted
-        discord.utils.get(guild.roles, id=923985729976139797), #Staff
+        discord.utils.get(guild.roles, id=925535987617124453), #Developer
+        discord.utils.get(guild.roles, id=792417972295696424), #Founder
+        discord.utils.get(guild.roles, id=792417979005403197), #CM
+        discord.utils.get(guild.roles, id=792417974149316618), #Trusted
+        discord.utils.get(guild.roles, id=792417969703354378), #Staff
     ]
     for Main in role1:
         for member in guild.members:
@@ -165,7 +151,7 @@ async def MissingPermission(ctx, Author):
 
 
 async def Logging(ctx, cmd, author: None, effected_member: None, Reason: None, Channelused: None):
-    Channel = Client.get_channel(923989662333272164)
+    Channel = Client.get_channel(925538233285226537)
     today = date.today()
     now = datetime.now()
 
@@ -354,6 +340,8 @@ async def _Help(ctx):
 `,Unmute [User]` (WIP)
 
 `,Lock [Channel] [Time] [Reason]`
+
+`,Alert [Channel Location] [Message ID]`
             
             ''', inline=False)
             Moderation.set_footer(text=f' Page 2/5', icon_url=ctx.author.avatar_url)
@@ -414,6 +402,9 @@ async def _Help(ctx):
 
 `,RandomNumber [First number] [Second number]`
 
+`,Application`
+
+`,Post`
             
             ''', inline=False)
             Misc.set_footer(text=f' Page 5/5', icon_url=ctx.author.avatar_url)
@@ -443,7 +434,7 @@ async def _Purge(ctx, Amount: int):
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             current_Date = today.strftime("%B %d, %Y")
-            Channel = Client.get_channel(923989641160454174)
+            Channel = Client.get_channel(925548301531643904)
             Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
             Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
             Embed.set_thumbnail(url=ctx.author.avatar_url)
@@ -474,7 +465,7 @@ async def _Slowmode(ctx, Amount: int):
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             current_Date = today.strftime("%B %d, %Y")
-            Channel = Client.get_channel(923989641160454174)
+            Channel = Client.get_channel(925548301531643904)
             Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
             Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
             Embed.add_field(name="Error Message:", value=f'__**Please enter a valid number.**__', inline=False)
@@ -694,8 +685,8 @@ async def _ticket(ctx):
                 Text = None
                 database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
                 Database.commit()
-                Channel = Client.get_channel(923989676677812244)
-                Channel2 = Client.get_channel(923989737130307605)
+                Channel = Client.get_channel(925539652662861914)
+                Channel2 = Client.get_channel(925539281517297674)
                 Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeInteraction}', color=0x546e7a)
                 Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
                 Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
@@ -934,8 +925,8 @@ async def _Appeal(ctx):
                 Text = None
                 database.execute("INSERT INTO Appeal_Logs (Ticket) VALUES (?)", (Text,))
                 Database.commit()
-                Channel = Client.get_channel(923989721833672714)
-                Channel2 = Client.get_channel(923989737130307605)
+                Channel = Client.get_channel(704274570143858758)
+                Channel2 = Client.get_channel(925539281517297674)
                 Final_Embed = discord.Embed(title="Appeal System", description=f'Appeal Type: {TypeInteraction}', color=0x546e7a)
                 Final_Embed.add_field(name='Appeal Code: ', value=f'#{Number}/{Code}', inline=False)
                 Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
@@ -1080,7 +1071,7 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
-    Channel = Client.get_channel(923989753098035290)
+    Channel = Client.get_channel(704274108283748373)
     if In_Group == True or ctx.author.guild_permissions.administrator:
         await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
         Main = discord.Embed(title="**Infraction System**", description=f"Warned <@{Member.id}> successfully.")
@@ -1190,6 +1181,7 @@ User: <@{Member.id}>
 Status: {Member.activity}
 Nickname: {Member.display_name}
 Joined: {Member.joined_at} UCT
+Created at: {Member.created_at}
 ''', inline=False)
 
         Main.set_author(name=f'{Member.id}', icon_url=MemberTag.avatar_url)
@@ -1276,10 +1268,10 @@ async def _Rule(ctx):
 
 `+` 12. Refrain from using __sexual remarks__ (sexual joking, sexual comments etc...)
 
-`+` 13. All commands used should be used in its right [channels](https://discord.com/channels/923982879082561627/923999679358857276)
+`+` 13. All commands used should be used in its right [channels](https://discord.com/channels/697064724893794314/704653260333645844)
 
 ''', inline=False)
-    Main.set_image(url="https://media.discordapp.net/attachments/857789246333386792/923983433292718160/31904e92-0548-45d2-962c-67af5e39ed11-profile_image-300x300.png?width=169&height=169")
+    Main.set_image(url="https://media.discordapp.net/attachments/843439250817286164/925560535230062632/DevLogo2.0.png?width=169&height=169")
     await ctx.author.send(embed=Main)
 
 
@@ -1442,6 +1434,7 @@ async def _ServerInfo(ctx):
     Embed.add_field(name=f'Server is owned by: ', value=f'{ctx.guild.owner}/{ctx.guild.owner_id}/<@{ctx.guild.owner_id}>', inline=False)
     Embed.add_field(name=f'The server region is: ', value=f'{ctx.guild.region}', inline=False)
     Embed.add_field(name=f'The server description: ', value=f'{ctx.guild.description}', inline=False)
+    Embed.add_field(name=f'The server Creation Date: ', value=f'{ctx.guild.created_at}', inline=False)
     Embed.add_field(name=f'The server default notifications: ', value=f'{ctx.guild.default_notifications}', inline=False)
     Embed.add_field(name=f'Amount of members in the guild: ', value=f'{ctx.guild.member_count}', inline=False)
     Embed.add_field(name=f'Amount of channels in the guild: ', value=f'{Number2}', inline=False)
@@ -1522,6 +1515,448 @@ async def _Undeafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason)
         await ctx.send(embed=Embed)
         await Member.edit(deafen = False)
         await Member.edit(mute = False)
+
+
+
+
+
+@Client.command(aliases = ['Post'],  pass_context=True)
+async def _Post(ctx):
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
+    Preview_Buttons = [
+        [
+        Button(style=ButtonStyle.red, label='Reject', custom_id='Reject'),
+        Button(style=ButtonStyle.green, label='Accept', custom_id='Accept'),
+        ]
+    ]
+    Report_Buttons = [
+        [
+        Button(style=ButtonStyle.green, label='Sound Editing', custom_id='Sound Editing'),
+        Button(style=ButtonStyle.green, label='3D Modeller', custom_id='3D Modeller'),
+        Button(style=ButtonStyle.green, label='2D Modeller', custom_id='2D Modeller'),
+        Button(style=ButtonStyle.red, label='Others', custom_id='Others'),
+        ],
+        [
+        Button(style=ButtonStyle.green, label='Programming', custom_id='Programming'),
+        Button(style=ButtonStyle.green, label='Building', custom_id='Building'),
+        Button(style=ButtonStyle.green, label='Interface', custom_id='Interface'),
+        Button(style=ButtonStyle.green, label='Scripting', custom_id='Scripting'),
+        ]
+    ]
+    Final_Buttons = [
+        [
+        Button(style=ButtonStyle.gray, label='Claim', custom_id='Claim'),
+        Button(style=ButtonStyle.green, label='Approve', custom_id='Approve'),
+        Button(style=ButtonStyle.red, label='Revoke', custom_id='Revoke'),
+        ]
+    ]
+    Today = date.today()
+    Now = datetime.now()
+    current_time = Now.strftime("%H:%M:%S")
+    current_Date = Today.strftime("%B %d, %Y")
+
+    Code = random.randint(0,999999999999999999)
+
+    Message = discord.Embed(title="Market System", description='Please check your DMs for further information.', color=0x546e7a)
+    Message.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    await ctx.send(embed=Message)
+
+    Main = discord.Embed(title="**Market System**", description=f"Please reply with your post. Please provide **images/videos** to support your post.", color=0xe67e22)
+    Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+    Main.set_footer(text=f'Market by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+    await ctx.author.send(embed=Main)
+    Report = await Client.wait_for('message', check=lambda message: message.author == ctx.author)
+
+    if isinstance(Report.channel, discord.channel.TextChannel):
+        Cancelled = discord.Embed(title="**Market System**", description=f"Market cancelled, please recreate your post and reply in Direct Messages", color=0xe74c3c)
+        Cancelled.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+        Cancelled.set_footer(text=f'Market by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+        Cancelled.set_thumbnail(url=ctx.author.avatar_url)
+        await ctx.author.send(embed=Cancelled)
+    elif isinstance(Report.channel, discord.channel.DMChannel):
+        Type = discord.Embed(title="Marketplace post Type", description='Please select the Marketplace post type you want to make.', color=0x546e7a)
+        Type.add_field(name='Please provide `Full post`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
+        Type.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+        Type.set_thumbnail(url=ctx.author.avatar_url)
+        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+
+        msg = await ctx.author.send(components=Report_Buttons,embed=Type)
+        
+
+        Interaction = await Client.wait_for("button_click", timeout=60) #check=lambda inter: inter.message.id == msg.id)
+
+        if Interaction and Interaction.message.id == msg.id:
+
+            TypeInteraction = Interaction.custom_id
+            Report_Embed = discord.Embed(title="Market System Preview", description=f'Market Type: {TypeInteraction}', color=0xe91e63)
+            Report_Embed.add_field(name='Market Code: ', value=f'#{Code}', inline=False)
+            Report_Embed.add_field(name='Post: ', value=Report.content, inline=False)
+            Report_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+            Report_Embed.add_field(name='Note: ', value='If you do not get a response from a Moderator/Administrator within 48 hours please re-post a appeal.', inline=False)
+            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+            Report_Embed.set_thumbnail(url=ctx.author.avatar_url)
+            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            await Interaction.disable_components()
+            await msg.edit(embed=Report_Embed, components=Preview_Buttons)
+            Preview_Interaction = await Client.wait_for("button_click", timeout=60)
+            if Preview_Interaction.custom_id == "Accept" and Preview_Interaction.message.id == msg.id:
+                Text = None
+                Channel = Client.get_channel(925540050186403860)
+                Channel2 = Client.get_channel(925539281517297674)
+                Final_Embed = discord.Embed(title="Market System", description=f'Market Type: {TypeInteraction}', color=0x546e7a)
+                Final_Embed.add_field(name='Market Code: ', value=f'#{Code}', inline=False)
+                Final_Embed.add_field(name='Post: ', value=Report.content, inline=False)
+                Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
+                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                Final_Embed.set_thumbnail(url=ctx.author.avatar_url)
+                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                CurrentType = "None"
+                await Preview_Interaction.disable_components()
+                await ctx.author.send(embed=Final_Embed)
+                await msg.delete()
+                Main_Report = await Channel.send(embed=Final_Embed, components=Final_Buttons)
+                while True:
+                    Main_Interaction = await Client.wait_for("button_click", timeout=31556926)
+                    if Main_Interaction.custom_id == 'Revoke' and Main_Interaction.message.id == Main_Report.id:
+                        CurrentType = "Close"
+                        Closed_Embed = discord.Embed(title=f"Market Revoked by {Main_Interaction.user}", description=f'Post Type: {TypeInteraction}', color=0xe74c3c)
+                        Closed_Embed.add_field(name='Market Code: ', value=f'#{Code}', inline=False)
+                        Closed_Embed.add_field(name='Post: ', value=Report.content, inline=False)
+                        Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                        Closed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
+                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                        Closed_Embed.set_thumbnail(url=ctx.author.avatar_url)
+                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        await Main_Report.edit(embed=Closed_Embed)
+                        await Main_Interaction.disable_components()
+                        await Main_Report.delete()
+                        await Channel2.send(embed=Closed_Embed)
+                    elif Main_Interaction.custom_id == 'Approve' and Main_Interaction.message.id == Main_Report.id:
+                        CurrentType = "Claim"
+                        Approved_Embed = discord.Embed(title=f"Market Approved by {Main_Interaction.user}", description=f'Post Type: {TypeInteraction}', color=0x00ff00)
+                        Approved_Embed.add_field(name='Market Code: ', value=f'#{Code}', inline=False)
+                        Approved_Embed.add_field(name='Post: ', value=Report.content, inline=False)
+                        Approved_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                        Approved_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
+                        Approved_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                        Approved_Embed.set_thumbnail(url=ctx.author.avatar_url)
+                        Approved_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+
+                        Post_Embed = discord.Embed(title=f"Market Post by {ctx.author}/({ctx.author.id})", description=f'Post Type: {TypeInteraction}')
+                        Post_Embed.add_field(name='Post: ', value=Report.content, inline=False)
+                        Post_Embed.add_field(name='Contact Information: ', value=f'<@{ctx.author.id}>', inline=False)
+                        Post_Embed.add_field(name='Payment Type: ', value=f'Upon completion', inline=False)
+                        Post_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                        Post_Embed.set_footer(text=f'Approved by {Main_Interaction.user} ({Main_Interaction.user.id})', icon_url=Main_Interaction.user.avatar_url )
+
+
+                        await Main_Report.edit(embed=Approved_Embed)
+                        await Main_Interaction.disable_components()
+                        await Main_Report.delete()
+                        await Channel2.send(embed=Approved_Embed)
+                        if TypeInteraction == "Sound Editing":
+                            Channel3 = Client.get_channel(925542713808539678)
+                            await Channel3.send(embed=Post_Embed)
+                        elif TypeInteraction == "3D Modeller":
+                            Channel3 = Client.get_channel(925542908772364359)
+                            await Channel3.send(embed=Post_Embed)
+                        elif TypeInteraction == "2D Modeller":
+                            Channel3 = Client.get_channel(925542880985112648)
+                            await Channel3.send(embed=Post_Embed)
+                        elif TypeInteraction == "Programming":
+                            Channel3 = Client.get_channel(925542611450748998)
+                            await Channel3.send(embed=Post_Embed)
+                        elif TypeInteraction == "Scripting":
+                            Channel3 = Client.get_channel(925542639615500299)
+                            await Channel3.send(embed=Post_Embed)
+                        elif TypeInteraction == "Building":
+                            Channel3 = Client.get_channel(925542683693441074)
+                            await Channel3.send(embed=Post_Embed)
+                        elif TypeInteraction == "Others":
+                            Channel3 = Client.get_channel(925543049763913779)
+                            await Channel3.send(embed=Post_Embed)
+                        elif TypeInteraction == "Interface":
+                            Channel3 = Client.get_channel(925542562377371719)
+                            await Channel3.send(embed=Post_Embed)
+                        
+                    elif Main_Interaction.custom_id == 'Claim' and Main_Interaction.message.id == Main_Report.id:
+                        CurrentType = "Claim"
+                        Claimed_Embed = discord.Embed(title=f"Appeal Claimed by {Main_Interaction.user}", description=f'Post Type: {TypeInteraction}', color=0xe67e22)
+                        Claimed_Embed.add_field(name='Appeal Code: ', value=f'#{Code}', inline=False)
+                        Claimed_Embed.add_field(name='Post: ', value=Report.content, inline=False)
+                        Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                        Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
+                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar_url)
+                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        await Main_Interaction.edit_origin(embed=Claimed_Embed)    
+            elif Preview_Interaction.custom_id == "Reject" and Preview_Interaction.message.id == msg.id:
+                Rejected = discord.Embed(title=f"Appeal Closed by {Preview_Interaction.user.id}", description=f'Post Type: {Interaction.custom_id}', color=0xe74c3c)
+                Rejected.add_field(name='Appeal Code: ', value=f'#{Code}', inline=False)
+                Rejected.add_field(name='Post: ', value=Report.content, inline=False)
+                Rejected.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                Rejected.add_field(name='Note: ', value='Your appeal was closed.', inline=False)
+                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                Rejected.set_thumbnail(url=ctx.author.avatar_url)
+                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                await Preview_Interaction.disable_components()
+                await msg.edit(embed=Rejected)
+
+
+@Client.command(aliases = ['Application', 'Apply'],  pass_context=True)
+async def _Application(ctx):
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
+    Preview_Buttons = [
+        [
+        Button(style=ButtonStyle.red, label='Reject', custom_id='Reject'),
+        Button(style=ButtonStyle.green, label='Accept', custom_id='Accept'),
+        ]
+    ]
+    Report_Buttons = [
+        [
+        Button(style=ButtonStyle.green, label='Visual Effects', custom_id='Visual Effects'),
+        Button(style=ButtonStyle.red, label='Content Creator', custom_id='Content Creator'),
+        Button(style=ButtonStyle.green, label='2D Graphics', custom_id='2D Graphics'),
+        Button(style=ButtonStyle.green, label='3D Graphics', custom_id='3D Graphics'),
+        ],
+        [
+        Button(style=ButtonStyle.green, label='Sound Editing', custom_id='Sound Editing'),
+        Button(style=ButtonStyle.green, label='Animator', custom_id='Animator'),
+        Button(style=ButtonStyle.green, label='Terrain builder', custom_id='Terrain builder'),
+        Button(style=ButtonStyle.red, label='Tester', custom_id='Tester'),
+        ],
+        [
+        Button(style=ButtonStyle.green, label='Plot writer', custom_id='Plot writer'),
+        Button(style=ButtonStyle.green, label='Interface Designer', custom_id='Interface Designer'),
+        Button(style=ButtonStyle.green, label='Modeller', custom_id='Modeller'),
+        Button(style=ButtonStyle.green, label='Voice Actor', custom_id='Voice Actor'),
+        ],
+        [
+        Button(style=ButtonStyle.green, label='Builder', custom_id='Builder'),
+        Button(style=ButtonStyle.green, label='Programmer', custom_id='Programmer'),
+        Button(style=ButtonStyle.green, label='Music Composer', custom_id='Music Composer'),
+        Button(style=ButtonStyle.green, label='Clothing', custom_id='Clothing'),
+        ]
+    ]
+    Final_Buttons = [
+        [
+        Button(style=ButtonStyle.gray, label='Claim', custom_id='Claim'),
+        Button(style=ButtonStyle.blue , label='Edit', custom_id='Note'),
+        Button(style=ButtonStyle.green, label='Approve', custom_id='Approve'),
+        Button(style=ButtonStyle.red, label='Revoke', custom_id='Revoke'),
+        ]
+    ]
+    Today = date.today()
+    Now = datetime.now()
+    current_time = Now.strftime("%H:%M:%S")
+    current_Date = Today.strftime("%B %d, %Y")
+
+    Selected_Code = "SELECT Application FROM Appliaction_Logs"
+    Cursor.execute(Selected_Code)
+    records = Cursor.fetchall()
+    Number = 0
+    for record in records:
+        Number = Number + 1
+    Number = Number + 1
+    Code = random.randint(0,999999999999999999)
+
+    Message = discord.Embed(title="Application System", description='Please check your DMs for further information.', color=0x546e7a)
+    Message.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    await ctx.send(embed=Message)
+
+    Main = discord.Embed(title="**Application System**", description=f"Please reply with your Application. Please provide **images/videos** of your portfolio to support your Application.", color=0xe67e22)
+    Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+    Main.set_footer(text=f'Application by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+    await ctx.author.send(embed=Main)
+    Report = await Client.wait_for('message', check=lambda message: message.author == ctx.author)
+
+    if isinstance(Report.channel, discord.channel.TextChannel):
+        Cancelled = discord.Embed(title="**Application System**", description=f"Application cancelled, please recreate your Application and reply in Direct Messages", color=0xe74c3c)
+        Cancelled.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+        Cancelled.set_footer(text=f'Application by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+        Cancelled.set_thumbnail(url=ctx.author.avatar_url)
+        await ctx.author.send(embed=Cancelled)
+    elif isinstance(Report.channel, discord.channel.DMChannel):
+        Type = discord.Embed(title="Application Type", description='Please select the Application type you want to make.', color=0x546e7a)
+        Type.add_field(name='Please provide `Full Report`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
+        Type.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+        Type.set_thumbnail(url=ctx.author.avatar_url)
+        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+
+        msg = await ctx.author.send(components=Report_Buttons,embed=Type)
+        
+
+        Interaction = await Client.wait_for("button_click", timeout=60) #check=lambda inter: inter.message.id == msg.id)
+
+        if Interaction and Interaction.message.id == msg.id:
+            TypeInteraction = Interaction.custom_id
+            Report_Embed = discord.Embed(title="Application System Preview", description=f'Application Type: {TypeInteraction}', color=0xe91e63)
+            Report_Embed.add_field(name='Application Code: ', value=f'#{Number}/{Code}', inline=False)
+            Report_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+            Report_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+            Report_Embed.add_field(name='Note: ', value='If you do not get a response from a Moderator/Administrator within 48 hours please re-post a Application.', inline=False)
+            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+            Report_Embed.set_thumbnail(url=ctx.author.avatar_url)
+            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            await Interaction.disable_components()
+            await msg.edit(embed=Report_Embed, components=Preview_Buttons)
+            Preview_Interaction = await Client.wait_for("button_click", timeout=60)
+            if Preview_Interaction.custom_id == "Accept" and Preview_Interaction.message.id == msg.id:
+                Text = None
+                database.execute("INSERT INTO Appliaction_Logs (Application) VALUES (?)", (Text,))
+                Database.commit()
+                Channel = Client.get_channel(925539955428696064)
+                Channel2 = Client.get_channel(925539281517297674)
+                Final_Embed = discord.Embed(title="Application System", description=f'Application Type: {TypeInteraction}', color=0x546e7a)
+                Final_Embed.add_field(name='Application Code: ', value=f'#{Number}/{Code}', inline=False)
+                Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+                Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
+                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                Final_Embed.set_thumbnail(url=ctx.author.avatar_url)
+                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                CurrentType = "None"
+                await Preview_Interaction.disable_components()
+                await ctx.author.send(embed=Final_Embed)
+                await msg.delete()
+                Main_Report = await Channel.send(embed=Final_Embed, components=Final_Buttons)
+                while True:
+                    Main_Interaction = await Client.wait_for("button_click", timeout=31556926)
+                    if Main_Interaction.custom_id == 'Revoke' and Main_Interaction.message.id == Main_Report.id:
+                        CurrentType = "Close"
+                        Closed_Embed = discord.Embed(title=f"Application Revoked by {Main_Interaction.user}", description=f'Application Type: {TypeInteraction}', color=0xe74c3c)
+                        Closed_Embed.add_field(name='Application Code: ', value=f'#{Number}/{Code}', inline=False)
+                        Closed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+                        Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                        Closed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
+                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                        Closed_Embed.set_thumbnail(url=ctx.author.avatar_url)
+                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        await Main_Report.edit(embed=Closed_Embed)
+                        await Main_Interaction.disable_components()
+                        await Main_Report.delete()
+                        await ctx.author.send(embed=Closed_Embed)
+                        await Channel2.send(embed=Closed_Embed)
+                    elif Main_Interaction.custom_id == 'Approve' and Main_Interaction.message.id == Main_Report.id:
+                        CurrentType = "Claim"
+                        Approved_Embed = discord.Embed(title=f"Application Approved by {Main_Interaction.user}", description=f'Application Type: {TypeInteraction}', color=0x00ff00)
+                        Approved_Embed.add_field(name='Application Code: ', value=f'#{Number}/{Code}', inline=False)
+                        Approved_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+                        Approved_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                        Approved_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
+                        Approved_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                        Approved_Embed.set_thumbnail(url=ctx.author.avatar_url)
+                        Approved_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        await Main_Report.edit(embed=Approved_Embed)
+                        await Main_Interaction.disable_components()
+                        await Main_Report.delete()
+                        await ctx.author.send(embed=Approved_Embed)
+                        await Channel2.send(embed=Approved_Embed)
+                    elif Main_Interaction.custom_id == 'Claim' and Main_Interaction.message.id == Main_Report.id:
+                        CurrentType = "Claim"
+                        Claimed_Embed = discord.Embed(title=f"Application Claimed by {Main_Interaction.user}", description=f'Application Type: {TypeInteraction}', color=0xe67e22)
+                        Claimed_Embed.add_field(name='Application Code: ', value=f'#{Number}/{Code}', inline=False)
+                        Claimed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+                        Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                        Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
+                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar_url)
+                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        await Main_Interaction.edit_origin(embed=Claimed_Embed)    
+                    elif Main_Interaction.custom_id == 'Note' and Main_Interaction.message.id == Main_Report.id:
+                        Note = discord.Embed(title="Application System", description=f'Please reply with your note for this Application.', color=0x546e7a)
+                        Note.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                        Note.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                        Note.set_thumbnail(url=ctx.author.avatar_url)
+                        Note.set_footer(text=f'Requested by {Main_Interaction.user}.', icon_url=ctx.author.avatar_url)
+                        await Main_Interaction.user.send(embed=Note)
+                        await Main_Interaction.edit_origin(embed=Final_Embed)
+                        NoteMsg = await Client.wait_for('message', check=lambda message: message.author.id == Main_Interaction.user.id)
+                        if isinstance(NoteMsg.channel, discord.channel.TextChannel):
+                            Cancelled2 = discord.Embed(title="**Application System**", description=f"Note cancelled, plase click back on note to create a new one.", color=0xe74c3c)
+                            Cancelled2.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                            Cancelled2.set_footer(text=f'Application by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                            Cancelled2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+                            Cancelled2.set_thumbnail(url=ctx.author.avatar_url)
+                            await Main_Interaction.user.send(embed=Cancelled2)
+                        elif isinstance(NoteMsg.channel, discord.channel.DMChannel):
+                            Text = NoteMsg.content
+                            if CurrentType == "Close" and Main_Interaction.message.id == Main_Report.id:
+                                Closed_Embed.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
+                                await Main_Interaction.user.send(embed=Closed_Embed)
+                                await Main_Report.edit(embed=Closed_Embed)
+                            elif CurrentType == "Claim" and Main_Interaction.message.id == Main_Report.id:
+                                Claimed_Embed1 = discord.Embed(title=f"Application Claimed by {Main_Interaction.user}", description=f'Application Type: {TypeInteraction}', color=0xe67e22)
+                                Claimed_Embed1.add_field(name='Application Code: ', value=f'#{Number}/{Code}', inline=False)
+                                Claimed_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
+                                Claimed_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                                Claimed_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
+                                Claimed_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                                Claimed_Embed1.set_thumbnail(url=ctx.author.avatar_url)
+                                Claimed_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)                                
+                                await Main_Interaction.user.send(embed=Claimed_Embed1)
+                                await Main_Report.edit(embed=Claimed_Embed1)
+                            elif CurrentType == "None" and Main_Interaction.message.id == Main_Report.id:
+                                Final_Embed1 = discord.Embed(title="Application System", description=f'Application Type: {TypeInteraction}', color=0x546e7a)
+                                Final_Embed1.add_field(name='Application Code: ', value=f'#{Number}/{Code}', inline=False)
+                                Final_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
+                                Final_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                                Final_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
+                                Final_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                                Final_Embed1.set_thumbnail(url=ctx.author.avatar_url)
+                                Final_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                                await Main_Interaction.user.send(embed=Final_Embed1)
+                                await Main_Report.edit(embed=Final_Embed1)
+            elif Preview_Interaction.custom_id == "Reject" and Preview_Interaction.message.id == msg.id:
+                Rejected = discord.Embed(title=f"Application Closed by {Preview_Interaction.user.id}", description=f'Application Type: {Interaction.custom_id}', color=0xe74c3c)
+                Rejected.add_field(name='Application Code: ', value=f'#{Number}/{Code}', inline=False)
+                Rejected.add_field(name='Report: ', value=Report.content, inline=False)
+                Rejected.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                Rejected.add_field(name='Note: ', value='Your Application was closed.', inline=False)
+                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+                Rejected.set_thumbnail(url=ctx.author.avatar_url)
+                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                await Preview_Interaction.disable_components()
+                await msg.edit(embed=Rejected)
+
+
+
+
+
+@Client.command(aliases = ['Alert', 'ModReq'], pass_context=True)
+async def _Alert(ctx, Channel_Location: discord.TextChannel,Message_Id:int): 
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    msg = await Channel_Location.fetch_message(Message_Id)
+    Channel = Client.get_channel(927606540440076328)
+    Message = discord.Embed(title="Moderation Alert", description='All active moderators, please handle the situation.', color=0x546e7a)
+    Message.add_field(name='Message ID: ', value=f'`{Message_Id}`', inline=False)
+    Message.add_field(name='Who wrote the message? ', value=f'`{msg.author}/`<@{msg.author.id}>', inline=False)
+    Message.add_field(name='Who reported the message? ', value=f'`{ctx.author}/`<@{ctx.author.id}>', inline=False)
+    Message.add_field(name='When? ', value=f'`{msg.created_at}`', inline=False)
+    Message.add_field(name='Where? ', value=f'<#{Channel_Location.id}>', inline=False)
+    Message.add_field(name='Date of the report: ', value=f'{current_time}, {current_Date}', inline=False)
+    Message.add_field(name='Message:', value=f'''
+```
+{msg.content}
+```
+    ''', inline=False)
+    await Channel.send("All active <@&792423903284822037>, please handle this situation", embed=Message)
+
+
 
 Client.run('OTI1NTQ1MjkxNTMxMzA0OTYw.YcurOQ.u4NkEE8jgXhFEzBDs_mQEwIb-S4') 
 
