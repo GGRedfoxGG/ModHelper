@@ -1,3 +1,4 @@
+from __future__ import annotations
 from logging import fatal
 from re import A
 from sqlite3.dbapi2 import Cursor
@@ -21,6 +22,566 @@ from datetime import date, datetime
 import praw
 import re
 import string
+#
+
+import inspect
+import json
+import traceback
+import sys
+from collections import defaultdict
+
+import discord, discord.channel, discord.http, discord.state
+from discord.ext import commands
+from discord.utils import MISSING
+
+from typing import Coroutine, TypeVar, Union, get_args, get_origin, overload, Generic, TYPE_CHECKING
+
+BotT = TypeVar("BotT", bound='Bot')
+CtxT = TypeVar("CtxT", bound='Context')
+CogT = TypeVar("CogT", bound='ApplicationCog')
+NumT = Union[int, float]
+
+__all__ = ['describe', 'SlashCommand', 'ApplicationCog', 'Range', 'Context', 'Bot', 'slash_command', 'message_command', 'user_command']
+
+if TYPE_CHECKING:
+    from typing import Any, Awaitable, Callable, ClassVar
+    from typing_extensions import Concatenate, ParamSpec, Self
+
+    CmdP = ParamSpec("CmdP")
+    CmdT = Callable[Concatenate[CogT, CtxT, CmdP], Awaitable[Any]]
+    MsgCmdT = Callable[[CogT, CtxT, discord.Message], Awaitable[Any]]
+    UsrCmdT = Callable[[CogT, CtxT, discord.Member], Awaitable[Any]]
+    CtxMnT = Union[MsgCmdT, UsrCmdT]
+    
+    RngT = TypeVar("RngT", bound='Range')
+
+command_type_map: dict[type[Any], int] = {
+    str: 3,
+    int: 4,
+    bool: 5,
+    discord.User: 6,
+    discord.Member: 6,
+    discord.TextChannel: 7,
+    discord.VoiceChannel: 7,
+    discord.CategoryChannel: 7,
+    discord.Role: 8,
+    float: 10
+}
+
+channel_filter: dict[type[discord.abc.GuildChannel], int] = {
+    discord.TextChannel: 0,
+    discord.VoiceChannel: 2,
+    discord.CategoryChannel: 4
+}
+
+def describe(**kwargs):
+    """
+    Sets the description for the specified parameters of the slash command. Sample usage:
+    ```python
+    @slash_util.slash_command()
+    @describe(channel="The channel to ping")
+    async def mention(self, ctx: slash_util.Context, channel: discord.TextChannel):
+        await ctx.send(f'{channel.mention}')
+    ```
+    If this decorator is not used, parameter descriptions will be set to "No description provided." instead."""
+    def _inner(cmd):
+        func = cmd.func if isinstance(cmd, SlashCommand) else cmd
+        for name, desc in kwargs.items():
+            try:
+                func._param_desc_[name] = desc
+            except AttributeError:
+                func._param_desc_ = {name: desc}
+        return cmd
+    return _inner
+
+def slash_command(**kwargs) -> Callable[[CmdT], SlashCommand]:
+    """
+    Defines a function as a slash-type application command.
+    
+    Parameters:
+    - name: ``str``
+    - - The display name of the command. If unspecified, will use the functions name.
+    - guild_id: ``Optional[int]``
+    - - The guild ID this command will belong to. If unspecified, the command will be uploaded globally.
+    - description: ``str``
+    - - The description of the command. If unspecified, will use the functions docstring, or "No description provided" otherwise.
+    """
+    def _inner(func: CmdT) -> SlashCommand:
+        return SlashCommand(func, **kwargs)
+    return _inner
+    
+def message_command(**kwargs) -> Callable[[MsgCmdT], MessageCommand]:
+    """
+    Defines a function as a message-type application command.
+    
+    Parameters:
+    - name: ``str``
+    - - The display name of the command. If unspecified, will use the functions name.
+    - guild_id: ``Optional[int]``
+    - - The guild ID this command will belong to. If unspecified, the command will be uploaded globally.
+    """
+    def _inner(func: MsgCmdT) -> MessageCommand:
+        return MessageCommand(func, **kwargs)
+    return _inner
+
+def user_command(**kwargs) -> Callable[[UsrCmdT], UserCommand]:
+    """
+    Defines a function as a user-type application command.
+    
+    Parameters:
+    - name: ``str``
+    - - The display name of the command. If unspecified, will use the functions name.
+    - guild_id: ``Optional[int]``
+    - - The guild ID this command will belong to. If unspecified, the command will be uploaded globally.
+    """
+    def _inner(func: UsrCmdT) -> UserCommand:
+        return UserCommand(func, **kwargs)
+    return _inner
+
+class _RangeMeta(type):
+    @overload
+    def __getitem__(cls: type[RngT], max: int) -> type[int]: ...
+    @overload
+    def __getitem__(cls: type[RngT], max: tuple[int, int]) -> type[int]: ...
+    @overload
+    def __getitem__(cls: type[RngT], max: float) -> type[float]: ...
+    @overload
+    def __getitem__(cls: type[RngT], max: tuple[float, float]) -> type[float]: ...
+
+    def __getitem__(cls, max):
+        if isinstance(max, tuple):
+            return cls(*max)
+        return cls(None, max)
+
+class Range(metaclass=_RangeMeta):
+    """
+    Defines a minimum and maximum value for float or int values. The minimum value is optional.
+    ```python
+    async def number(self, ctx, num: slash_util.Range[0, 10], other_num: slash_util.Range[10]):
+        ...
+    ```"""
+    def __init__(self, min: NumT | None, max: NumT):
+        if min is not None and min >= max:
+            raise ValueError("`min` value must be lower than `max`")
+        self.min = min
+        self.max = max
+
+class Bot(commands.Bot):
+    async def start(self, token: str, *, reconnect: bool = True) -> None:
+        await self.login(token)
+        
+        app_info = await self.application_info()
+        self._connection.application_id = app_info.id
+
+        await self.sync_commands()
+        await self.connect(reconnect=reconnect)
+
+    def get_application_command(self, name: str) -> Command | None:
+        """
+        Gets and returns an application command by the given name.
+
+        Parameters:
+        - name: ``str``
+        - - The name of the command.
+
+        Returns:
+        - [Command](#deco-slash_commandkwargs)
+        - - The relevant command object
+        - ``None``
+        - - No command by that name was found.
+        """
+
+        for c in self.cogs.values():
+            if isinstance(c, ApplicationCog):
+                c = c._commands.get(name)
+                if c:
+                    return c
+
+    async def delete_all_commands(self, guild_id: int | None = None):
+        """
+        Deletes all commands on the specified guild, or all global commands if no guild id was given.
+        
+        Parameters:
+        - guild_id: ``Optional[str]``
+        - - The guild ID to delete from, or ``None`` to delete global commands.
+        """
+        path = f'/applications/{self.application_id}'
+        if guild_id is not None:
+            path += f'/guilds/{guild_id}'
+        path += '/commands'
+
+        route = discord.http.Route("GET", path)
+        data = await self.http.request(route)
+
+        for cmd in data:
+            snow = cmd['id']
+            await self.delete_command(snow, guild_id=guild_id)
+
+    async def delete_command(self, id: int, *, guild_id: int | None = None):
+        """
+        Deletes a command with the specified ID. The ID is a snowflake, not the name of the command.
+        
+        Parameters:
+        - id: ``int``
+        - - The ID of the command to delete.
+        - guild_id: ``Optional[str]``
+        - - The guild ID to delete from, or ``None`` to delete a global command.
+        """
+        route = discord.http.Route('DELETE', f'/applications/{self.application_id}{f"/guilds/{guild_id}" if guild_id else ""}/commands/{id}')
+        await self.http.request(route)
+ 
+    async def sync_commands(self) -> None:
+        """
+        Uploads all commands from cogs found and syncs them with discord.
+        Global commands will take up to an hour to update. Guild specific commands will update immediately.
+        """
+        if not self.application_id:
+            raise RuntimeError("sync_commands must be called after `run`, `start` or `login`")
+
+        for cog in self.cogs.values():
+            if not isinstance(cog, ApplicationCog):
+                continue
+
+            for cmd in cog._commands.values():
+                cmd.cog = cog
+                route = f"/applications/{self.application_id}"
+
+                if cmd.guild_id:
+                    route += f"/guilds/{cmd.guild_id}"
+                route += '/commands'
+
+                body = cmd._build_command_payload()
+
+                route = discord.http.Route('POST', route)
+                await self.http.request(route, json=body)
+
+class Context(Generic[BotT, CogT]):
+    """
+    The command interaction context.
+    
+    Attributes
+    - bot: [``slash_util.Bot``](#class-botcommand_prefix-help_commanddefault-help-command-descriptionnone-options)
+    - - Your bot object.
+    - command: Union[[SlashCommand](#deco-slash_commandkwargs), [UserCommand](#deco-user_commandkwargs), [MessageCommand](deco-message_commandkwargs)]
+    - - The command used with this interaction.
+    - interaction: [``discord.Interaction``](https://discordpy.readthedocs.io/en/master/api.html#discord.Interaction)
+    - - The interaction tied to this context."""
+    def __init__(self, bot: BotT, command: Command[CogT], interaction: discord.Interaction):
+        self.bot = bot
+        self.command = command
+        self.interaction = interaction
+        self._responded = False
+
+    @overload
+    def send(self, content: str = MISSING, *, embed: discord.Embed = MISSING, ephemeral: bool = MISSING, tts: bool = MISSING, view: discord.ui.View = MISSING, file: discord.File = MISSING) -> Coroutine[Any, Any, Union[discord.InteractionMessage, discord.WebhookMessage]]: ...
+
+    @overload
+    def send(self, content: str = MISSING, *, embed: discord.Embed = MISSING, ephemeral: bool = MISSING, tts: bool = MISSING, view: discord.ui.View = MISSING, files: list[discord.File] = MISSING) -> Coroutine[Any, Any, Union[discord.InteractionMessage, discord.WebhookMessage]]: ...
+
+    @overload
+    def send(self, content: str = MISSING, *, embeds: list[discord.Embed] = MISSING, ephemeral: bool = MISSING, tts: bool = MISSING, view: discord.ui.View = MISSING, file: discord.File = MISSING) -> Coroutine[Any, Any, Union[discord.InteractionMessage, discord.WebhookMessage]]: ...
+
+    @overload
+    def send(self, content: str = MISSING, *, embeds: list[discord.Embed] = MISSING, ephemeral: bool = MISSING, tts: bool = MISSING, view: discord.ui.View = MISSING, files: list[discord.File] = MISSING) -> Coroutine[Any, Any, Union[discord.InteractionMessage, discord.WebhookMessage]]: ...
+
+    async def send(self, content = MISSING, **kwargs) -> Union[discord.InteractionMessage, discord.WebhookMessage]:
+        """
+        Responds to the given interaction. If you have responded already, this will use the follow-up webhook instead.
+        Parameters ``embed`` and ``embeds`` cannot be specified together.
+        Parameters ``file`` and ``files`` cannot be specified together.
+        
+        Parameters:
+        - content: ``str``
+        - - The content of the message to respond with
+        - embed: [``discord.Embed``](https://discordpy.readthedocs.io/en/master/api.html#discord.Embed)
+        - - An embed to send with the message. Incompatible with ``embeds``.
+        - embeds: ``List[``[``discord.Embed``](https://discordpy.readthedocs.io/en/master/api.html#discord.Embed)``]``
+        - - A list of embeds to send with the message. Incompatible with ``embed``.
+        - file: [``discord.File``](https://discordpy.readthedocs.io/en/master/api.html#discord.File)
+        - - A file to send with the message. Incompatible with ``files``.
+        - files: ``List[``[``discord.File``](https://discordpy.readthedocs.io/en/master/api.html#discord.File)``]``
+        - - A list of files to send with the message. Incompatible with ``file``.
+        - ephemeral: ``bool``
+        - - Whether the message should be ephemeral (only visible to the interaction user).
+        - tts: ``bool``
+        - - Whether the message should be played via Text To Speech. Send TTS Messages permission is required.
+        - view: [``discord.ui.View``](https://discordpy.readthedocs.io/en/master/api.html#discord.ui.View)
+        - - Components to attach to the sent message.
+
+        Returns
+        - [``discord.InteractionMessage``](https://discordpy.readthedocs.io/en/master/api.html#discord.InteractionMessage) if this is the first time responding.
+        - [``discord.WebhookMessage``](https://discordpy.readthedocs.io/en/master/api.html#discord.WebhookMessage) for consecutive responses.
+        """
+        if self._responded:
+            return await self.interaction.followup.send(content, wait=True, **kwargs)
+
+        await self.interaction.response.send_message(content or None, **kwargs)
+        self._responded = True
+
+        return await self.interaction.original_message()
+    
+    @property
+    def cog(self) -> CogT:
+        """The cog this command belongs to."""
+        return self.command.cog
+
+    @property
+    def guild(self) -> discord.Guild:
+        """The guild this interaction was executed in."""
+        return self.interaction.guild  # type: ignore
+
+    @property
+    def message(self) -> discord.Message:
+        """The message that executed this interaction."""
+        return self.interaction.message  # type: ignore
+
+    @property
+    def channel(self) -> discord.interactions.InteractionChannel:
+        """The channel the interaction was executed in."""
+        return self.interaction.channel  # type: ignore
+
+    @property
+    def author(self) -> discord.Member:
+        """The user that executed this interaction."""
+        return self.interaction.user  # type: ignore
+
+class Command(Generic[CogT]):
+    cog: CogT
+    func: Callable
+    name: str
+    guild_id: int | None
+
+    def _build_command_payload(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def _build_arguments(self, interaction: discord.Interaction, state: discord.state.ConnectionState) -> dict[str, Any]:
+        raise NotImplementedError
+
+    async def invoke(self, context: Context[BotT, CogT], **params) -> None:
+        await self.func(self.cog, context, **params)
+
+class SlashCommand(Command[CogT]):
+    def __init__(self, func: CmdT, **kwargs):
+        self.func = func
+        self.cog: CogT
+
+        self.name: str = kwargs.get("name", func.__name__)
+
+        self.description: str = kwargs.get("description") or func.__doc__ or "No description provided"
+
+        self.guild_id: int | None = kwargs.get("guild_id")
+
+        self.parameters = self._build_parameters()
+        self._parameter_descriptions: dict[str, str] = defaultdict(lambda: "No description provided")
+
+    def _build_arguments(self, interaction, state):
+        if 'options' not in interaction.data:
+            return {}
+
+        resolved = _parse_resolved_data(interaction, interaction.data.get('resolved'), state)
+        result = {}
+        for option in interaction.data['options']:
+            value = option['value']
+            if option['type'] in (6, 7, 8):
+                value = resolved[int(value)]
+
+            result[option['name']] = value
+        return result
+
+    def _build_parameters(self) -> dict[str, inspect.Parameter]:
+        params = list(inspect.signature(self.func).parameters.values())
+        try:
+            params.pop(0)
+        except IndexError:
+            raise ValueError("expected argument `self` is missing")
+        
+        try:
+            params.pop(0)
+        except IndexError:
+            raise ValueError("expected argument `context` is missing")
+
+        return {p.name: p for p in params}
+
+    def _build_descriptions(self):
+        if not hasattr(self.func, '_param_desc_'):
+            return
+        
+        for k, v in self.func._param_desc_.items():
+            if k not in self.parameters:
+                raise TypeError(f"@describe used to describe a non-existant parameter `{k}`")
+
+            self._parameter_descriptions[k] = v
+
+    def _build_command_payload(self):
+        self._build_descriptions()
+
+        payload = {
+            "name": self.name,
+            "description": self.description,
+            "type": 1
+        }
+
+        params = self.parameters
+        if params:
+            options = []
+            for name, param in params.items():
+                ann = param.annotation
+
+                if ann is param.empty:
+                    raise TypeError(f"missing type annotation for parameter `{param.name}` for command `{self.name}`")
+
+                if isinstance(ann, str):
+                    ann = eval(ann)
+
+                if isinstance(ann, Range):
+                    real_t = type(ann.max)
+                elif get_origin(ann) is Union:
+                    args = get_args(ann)
+                    real_t = args[0]
+                else:
+                    real_t = ann
+
+                typ = command_type_map[real_t]
+                option = {
+                    'type': typ,
+                    'name': name,
+                    'description': self._parameter_descriptions[name]
+                }
+                if param.default is param.empty:
+                    option['required'] = True
+                
+                if isinstance(ann, Range):
+                    option['max_value'] = ann.max
+                    option['min_value'] = ann.min
+
+                elif get_origin(ann) is Union:
+                    args = get_args(ann)
+
+                    if not all(issubclass(k, discord.abc.GuildChannel) for k in args):
+                        raise TypeError(f"Union parameter types only supported on *Channel types")
+
+                    if len(args) != 3:
+                        filtered = [channel_filter[i] for i in args]
+                        option['channel_types'] = filtered
+
+                elif issubclass(ann, discord.abc.GuildChannel):
+                    option['channel_types'] = [channel_filter[ann]]
+                
+                options.append(option)
+            options.sort(key=lambda f: not f.get('required'))
+            payload['options'] = options
+        return payload
+
+class ContextMenuCommand(Command[CogT]):
+    _type: ClassVar[int]
+
+    def __init__(self, func: CtxMnT, **kwargs):
+        self.func = func
+        self.guild_id: int | None = kwargs.get('guild_id', None)
+        self.name: str = kwargs.get('name', func.__name__)
+
+    def _build_command_payload(self):
+        payload = {
+            'name': self.name,
+            'type': self._type
+        }
+        if self.guild_id is not None:
+            payload['guild_id'] = self.guild_id
+        return payload
+
+    def _build_arguments(self, interaction: discord.Interaction, state: discord.state.ConnectionState) -> dict[str, Any]:
+        resolved = _parse_resolved_data(interaction, interaction.data.get('resolved'), state)  # type: ignore
+        value = resolved[int(interaction.data['target_id'])]  # type: ignore
+        return {'target': value}
+
+    async def invoke(self, context: Context[BotT, CogT], **params) -> None:
+        await self.func(self.cog, context, *params.values())
+
+class MessageCommand(ContextMenuCommand[CogT]):
+    _type = 3
+
+class UserCommand(ContextMenuCommand[CogT]):
+    _type = 2
+
+def _parse_resolved_data(interaction: discord.Interaction, data, state: discord.state.ConnectionState):
+    if not data:
+        return {}
+
+    assert interaction.guild 
+    resolved = {}
+
+    resolved_users = data.get('users')
+    if resolved_users:
+        resolved_members = data['members']
+        for id, d in resolved_users.items():
+            member_data = resolved_members[id]
+            member_data['user'] = d
+            member = discord.Member(data=member_data, guild=interaction.guild, state=state)
+            resolved[int(id)] = member
+        
+    resolved_channels = data.get('channels')
+    if resolved_channels:
+        for id, d in resolved_channels.items():
+            d['position'] = None
+            cls, _ = discord.channel._guild_channel_factory(d['type'])
+            channel = cls(state=state, guild=interaction.guild, data=d)
+            resolved[int(id)] = channel
+
+    resolved_messages = data.get('messages')
+    if resolved_messages:
+        for id, d in resolved_messages.items():
+            msg = discord.Message(state=state, channel=interaction.channel, data=d)  # type: ignore
+            resolved[int(id)] = msg
+
+    resolved_roles = data.get('roles')
+    if resolved_roles:
+        for id, d in resolved_roles.items():
+            role = discord.Role(guild=interaction.guild, state=state, data=d)
+            resolved[int(id)] = role
+
+    return resolved
+
+class ApplicationCog(commands.Cog, Generic[BotT]):
+    """
+    The cog that must be used for application commands.
+    
+    Attributes:
+    - bot: [``slash_util.Bot``](#class-botcommand_prefix-help_commanddefault-help-command-descriptionnone-options)
+    - - The bot instance."""
+    def __init__(self, bot: BotT):
+        self.bot: BotT = bot
+        self._commands: dict[str, Command] = {}
+
+        slashes = inspect.getmembers(self, lambda c: isinstance(c, Command))
+        for k, v in slashes:
+            self._commands[v.name] = v
+    
+    async def slash_command_error(self, ctx: Context[BotT, Self], error: Exception) -> None:
+        print("Error occured in command", ctx.command.name, file=sys.stderr)
+        traceback.print_exception(type(error), error, error.__traceback__)
+
+    @commands.Cog.listener("on_interaction")
+    async def _internal_interaction_handler(self, interaction: discord.Interaction):
+        if interaction.type is not discord.InteractionType.application_command:
+            return
+            
+        name = interaction.data['name']  # type: ignore
+        command = self._commands.get(name)
+        
+        if not command:
+            return
+
+        state = self.bot._connection
+        params: dict = command._build_arguments(interaction, state)
+        
+        ctx = Context(self.bot, command, interaction)
+        try:
+            await command.invoke(ctx, **params)
+        except commands.CommandError as e:
+            await self.slash_command_error(ctx, e)
+        except Exception as e:
+            #
+            await self.slash_command_error(ctx, commands.CommandInvokeError(e))
 
 
 Reddit = praw.Reddit(client_id = "CPgb5oYUc0IeDVDGIZApeg",
@@ -113,11 +674,11 @@ async def on_command_error(ctx, error):
     current_Date = today.strftime("%B %d, %Y")
     Channel = Client.get_channel(925548301531643904)
     Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
-    Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar_url)
-    Embed.set_thumbnail(url=ctx.author.avatar_url)
+    Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar.url)
+    Embed.set_thumbnail(url=ctx.author.avatar.url)
     Embed.add_field(name="Error Message:", value=f'__**{error}**__', inline=False)
     Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.channel.send(embed=Embed)
     await Channel.send(embed=Embed)
     pass
@@ -144,9 +705,9 @@ async def RoleChecker(ctx, User):
 async def MissingPermission(ctx, Author):
     Embed = discord.Embed(title="Missing Permissions", description='You should contact a system developer if you think this is a mistake', color=0xe67e22)
     Embed.add_field(name='You are not authorised to use this command on this user', value='Permission 400', inline=False)
-    Embed.set_author(name='Permission Error', icon_url=ctx.author.avatar_url)
-    Embed.set_thumbnail(url=ctx.author.avatar_url)
-    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Embed.set_author(name='Permission Error', icon_url=ctx.author.avatar.url)
+    Embed.set_thumbnail(url=ctx.author.avatar.url)
+    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.channel.send(embed=Embed)
 
 
@@ -159,14 +720,14 @@ async def Logging(ctx, cmd, author: None, effected_member: None, Reason: None, C
     current_Date = today.strftime("%B %d, %Y")
 
     Embed = discord.Embed(title="Moderation Logs")
-    Embed.set_author(name=author, icon_url=author.avatar_url)
+    Embed.set_author(name=author, icon_url=author.avatar.url)
     Embed.add_field(name='Command: ', value=f'{cmd}', inline=False)
     Embed.add_field(name='Used by: ', value=f'<@{author.id}>/{author}', inline=False)
     Embed.add_field(name='Effected User(s): ', value=f'<@{effected_member.id}>/{effected_member}', inline=False)
     Embed.add_field(name='Information: ', value=f'{Reason}', inline=False)
     Embed.add_field(name='Channel: ', value=f'<#{Channelused.id}>', inline=False)
     Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Embed.set_footer(text=f'Command used by {author}.', icon_url=ctx.author.avatar_url)
+    Embed.set_footer(text=f'Command used by {author}.', icon_url=ctx.author.avatar.url)
     await Channel.send(embed=Embed)
 
 
@@ -196,22 +757,22 @@ async def _announce(ctx, Channel: discord.TextChannel, Mode , Title, *,Annonceme
         Preview = discord.Embed(title="**Announcment Preview**", description=f"Full announcement made by {ctx.author}: ", color=0x1f8b4c)
         Preview.add_field(name=f'__{Title}__', value=Annoncement, inline=False)
         Preview.add_field(name='**__Announcement mentions: __**', value=Mode, inline=False)
-        Preview.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-        Preview.set_thumbnail(url=ctx.author.avatar_url)
+        Preview.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        Preview.set_thumbnail(url=ctx.author.avatar.url)
         msg = await ctx.send(components = buttons2, embed=Preview)
         Interaction_Preview = await Client.wait_for("button_click", timeout=2629743,check=lambda inter: inter.message.id == msg.id)
         if Interaction_Preview.custom_id=='Accept' and Mode2 == "Everyone":
             await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}> with @everyone mention with announcement: __{Annoncement}__", ctx.channel)
             Main = discord.Embed(color=0x2ecc71)
             Main.add_field(name=f'{Title}',value=Annoncement, inline=False)
-            Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar_url)
-            Main.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar.url)
+            Main.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
 
             Accepted = discord.Embed(title=f"**{Title}**", description=f"Full announcement made by {ctx.author}: ", color=0x3498db)
             Accepted.add_field(name=f'__Announcement Accepted__', value=f'Announcement View: {Annoncement}', inline=False)
-            Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-            Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await msg.edit(embed=Accepted)
             await Interaction_Preview.disable_components()
             await Channel.send("@everyone", embed=Main)
@@ -219,13 +780,13 @@ async def _announce(ctx, Channel: discord.TextChannel, Mode , Title, *,Annonceme
             await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}> with @here mention with announcement: __{Annoncement}__", ctx.channel)
             Main = discord.Embed(color=0x2ecc71)
             Main.add_field(name=f'{Title}',value=Annoncement, inline=False)
-            Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar_url)
-            Main.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar.url)
+            Main.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
             Accepted = discord.Embed(title=f"**{Title}**", description=f"Full announcement made by {ctx.author}: ", color=0x3498db)
             Accepted.add_field(name=f'__Announcement Accepted__', value=f'Announcement View: {Annoncement}', inline=False)
-            Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-            Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
             await msg.edit(embed=Accepted)
             await Interaction_Preview.disable_components()
@@ -234,23 +795,23 @@ async def _announce(ctx, Channel: discord.TextChannel, Mode , Title, *,Annonceme
             await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}> with no mentions with announcement: __{Annoncement}__", ctx.channel)
             Main = discord.Embed(color=0x2ecc71)
             Main.add_field(name=f'{Title}',value=Annoncement, inline=False)
-            Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar_url)
-            Main.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar.url)
+            Main.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
 
             Accepted = discord.Embed(title=f"**{Title}**", description=f"Full announcement made by {ctx.author}: ", color=0x3498db)
             Accepted.add_field(name=f'__Announcement Accepted__', value=f'Announcement View: {Annoncement}', inline=False)
-            Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-            Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await msg.edit(embed=Accepted)
             await Interaction_Preview.disable_components()
             await Channel.send(embed=Main)
         elif Interaction_Preview.custom_id=='Reject':
             Main = discord.Embed(title=f"**{Title}**", description=f"Full announcement rejected by {ctx.author}: ", color=0xe74c3c)
             Main.add_field(name=f'__Announcement: __', value=Annoncement, inline=False)
-            Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-            Main.set_thumbnail(url=ctx.author.avatar_url)
-            Main.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            Main.set_thumbnail(url=ctx.author.avatar.url)
+            Main.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await msg.edit(embed=Main)
             await Interaction_Preview.disable_components()
     else:
@@ -265,10 +826,10 @@ async def _Time(ctx):
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
     Embed = discord.Embed(title="Time Command", description='Your time period should be shown below: ', color=0x546e7a)
-    Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-    Embed.set_thumbnail(url=ctx.author.avatar_url)
+    Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+    Embed.set_thumbnail(url=ctx.author.avatar.url)
     Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.channel.send(embed=Embed)
     pass
 
@@ -290,13 +851,13 @@ async def _Help(ctx):
         ]
     ]
     Main = discord.Embed(title="**Help System**", description=f"All further information is now handled in Direct Messages.", color=0x7289da)
-    Main.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Main.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.send(embed=Main)
     Home = discord.Embed(title="**Help System**", description=f"Page information: __**{Pages[0]}**__", color=0x7289da)
     Home.add_field(name='You will find here: ', value='__**Moderation and Adminstration, Information, Fun, and Misc.**__', inline=False)
-    Home.set_thumbnail(url=ctx.author.avatar_url)
-    Home.set_footer(text=f' Page 1/5', icon_url=ctx.author.avatar_url)
-    Home.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+    Home.set_thumbnail(url=ctx.author.avatar.url)
+    Home.set_footer(text=f' Page 1/5', icon_url=ctx.author.avatar.url)
+    Home.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
     msg = await ctx.author.send(components=Preview_Buttons, embed=Home)
     Interaction_Home= await Client.wait_for("button_click", timeout=2629743,check=lambda inter: inter.message.id == msg.id)
     Current_Page = 1
@@ -304,7 +865,7 @@ async def _Help(ctx):
         if Interaction_Home.custom_id == 'Next' and Current_Page == 1:
             Current_Page = Current_Page + 1
             Moderation = discord.Embed(title="**Help System**", description=f"Page information: __**{Pages[2]}**__", color=0x7289da)
-            Moderation.set_thumbnail(url=ctx.author.avatar_url)
+            Moderation.set_thumbnail(url=ctx.author.avatar.url)
             Moderation.add_field(name='Moderation: ', value='''
 
 `,Ban [User] [Reason] [Evidence]`
@@ -344,14 +905,14 @@ async def _Help(ctx):
 `,Alert [Channel Location] [Message ID]`
             
             ''', inline=False)
-            Moderation.set_footer(text=f' Page 2/5', icon_url=ctx.author.avatar_url)
-            Moderation.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+            Moderation.set_footer(text=f' Page 2/5', icon_url=ctx.author.avatar.url)
+            Moderation.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
             await Interaction_Home.edit_origin(components=Preview_Buttons, embed=Moderation)
             Interaction_Moderation= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
         elif Interaction_Moderation.custom_id == 'Next' and Current_Page == 2:
             Current_Page = Current_Page + 1
             Information = discord.Embed(title="**Help System**", description=f"Page information: __**{Pages[3]}**__", color=0x7289da)
-            Information.set_thumbnail(url=ctx.author.avatar_url)
+            Information.set_thumbnail(url=ctx.author.avatar.url)
             Information.add_field(name='Information: ', value='''
 
 `,Announce [Channel] [Mode = Everyone/Here/None] [Title] [Announcement]`
@@ -373,14 +934,14 @@ async def _Help(ctx):
 `,Documents` (WIP)
             
             ''', inline=False)
-            Information.set_footer(text=f' Page 3/5', icon_url=ctx.author.avatar_url)
-            Information.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+            Information.set_footer(text=f' Page 3/5', icon_url=ctx.author.avatar.url)
+            Information.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
             await Interaction_Moderation.edit_origin(components=Preview_Buttons, embed=Information)
             Interaction_Information= await Client.wait_for("button_click", timeout=2629743,check=lambda inter: inter.message.id == msg.id)
         elif Interaction_Information.custom_id == 'Next' and Current_Page == 3:
             Current_Page = Current_Page + 1
             Fun = discord.Embed(title="**Help System**", description=f"Page information: __**{Pages[1]}**__", color=0x7289da)
-            Fun.set_thumbnail(url=ctx.author.avatar_url)
+            Fun.set_thumbnail(url=ctx.author.avatar.url)
             Fun.add_field(name='Fun: ', value='''
 
 `,Rps`
@@ -388,14 +949,14 @@ async def _Help(ctx):
 
             
             ''', inline=False)
-            Fun.set_footer(text=f' Page 4/5', icon_url=ctx.author.avatar_url)
-            Fun.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+            Fun.set_footer(text=f' Page 4/5', icon_url=ctx.author.avatar.url)
+            Fun.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
             await Interaction_Information.edit_origin(components=Preview_Buttons, embed=Fun)
             Interaction_Fun= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
         elif Interaction_Fun.custom_id == 'Next' and Current_Page == 4:
             Current_Page = Current_Page + 1
             Misc = discord.Embed(title="**Help System**", description=f"Page information: __**{Pages[4]}**__", color=0x7289da)
-            Misc.set_thumbnail(url=ctx.author.avatar_url)
+            Misc.set_thumbnail(url=ctx.author.avatar.url)
             Misc.add_field(name='Misc: ', value='''
 
 `,Ping`
@@ -407,8 +968,8 @@ async def _Help(ctx):
 `,Post`
             
             ''', inline=False)
-            Misc.set_footer(text=f' Page 5/5', icon_url=ctx.author.avatar_url)
-            Misc.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+            Misc.set_footer(text=f' Page 5/5', icon_url=ctx.author.avatar.url)
+            Misc.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
             await Interaction_Fun.edit_origin(components=Preview_Buttons, embed=Misc)
             Interaction_Misc= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
         elif Interaction_Misc.custom_id == 'Next' and Current_Page == 5:
@@ -436,17 +997,17 @@ async def _Purge(ctx, Amount: int):
             current_Date = today.strftime("%B %d, %Y")
             Channel = Client.get_channel(925548301531643904)
             Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
-            Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-            Embed.set_thumbnail(url=ctx.author.avatar_url)
+            Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+            Embed.set_thumbnail(url=ctx.author.avatar.url)
             Embed.add_field(name="Error Message:", value=f'__**Please enter a valid number.**__', inline=False)
             Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await Channel.send(embed=Embed)
             await ctx.channel.send(embed=Embed)
         else:
             await ctx.channel.purge(limit = Amount)
             Embed = discord.Embed(title="Purge Command", description=f'Purged {Amount} message(s).', color=0xe74c3c)
-            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             time.sleep(.5)
             await ctx.channel.send(embed=Embed,delete_after=10)
     else:
@@ -467,20 +1028,20 @@ async def _Slowmode(ctx, Amount: int):
             current_Date = today.strftime("%B %d, %Y")
             Channel = Client.get_channel(925548301531643904)
             Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
-            Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
+            Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
             Embed.add_field(name="Error Message:", value=f'__**Please enter a valid number.**__', inline=False)
             Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await Channel.send(embed=Embed)
             await ctx.channel.send(embed=Embed)
         elif Amount == 0:
             Embed = discord.Embed(title="Slowmode Command", description=f'Slow mode is disabled, slow mode is now {Amount} second(s) per message.', color=0x00ff00)
-            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await ctx.channel.edit(slowmode_delay=0)
             await ctx.channel.send(embed=Embed)
         else:
             Embed = discord.Embed(title="Slowmode Command", description=f'Slow mode is enabled, slow mode is now {Amount} second(s) per message', color=0x95a5a6)
-            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await ctx.channel.edit(slowmode_delay=Amount)
             await ctx.channel.send(embed=Embed)
     else:
@@ -516,9 +1077,9 @@ async def _Kick(ctx, Member: discord.Member,*, Reason):
         else:
             Embed = discord.Embed(title="Member Was Kicked Successfuly")
             Embed.add_field(name=f'__**{Member}**__ was kicked successfuly because of: ', value=f'{Reason}', inline=False)
-            Embed.set_author(name='Kicked ', icon_url=Member.avatar_url)
-            Embed.set_thumbnail(url=Member.avatar_url)
-            Embed.set_footer(text=f'Kicked by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Embed.set_author(name='Kicked ', icon_url=Member.avatar.url)
+            Embed.set_thumbnail(url=Member.avatar.url)
+            Embed.set_footer(text=f'Kicked by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await ctx.channel.send(embed=Embed)    
             await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
             database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
@@ -586,12 +1147,12 @@ async def _Infraction(ctx, Member: Union[discord.Member,discord.Object]):
 **Date: ** {Warnings_Date[0][0]}
 **Infracted by: ** <@{Warnings_Admin[0][0]}>
                 ''', inline=False)
-            Request.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
-            Request.set_author(name=f'{Member} ({Member.id})', icon_url=ctx.author.avatar_url)
+            Request.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            Request.set_author(name=f'{Member} ({Member.id})', icon_url=ctx.author.avatar.url)
             await ctx.send(embed=Request)
         else:
             Nothign = discord.Embed(title="**Infraction Logs**", description=f"<@{Member.id}> was never warned, muted, kicked or banned by the bot.", color=0x9b59b6)
-            Nothign.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Nothign.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await ctx.send(embed=Nothign)
     else:
         await MissingPermission(ctx, ctx.author)      
@@ -637,31 +1198,31 @@ async def _ticket(ctx):
 
     Message = discord.Embed(title="Ticket System", description='Please check your DMs for further information.', color=0x546e7a)
     Message.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.send(embed=Message)
 
     Main = discord.Embed(title="**Ticket System**", description=f"Please reply with your ticket. Please provide **images/videos** to support your ticket.", color=0xe67e22)
     Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Main.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar_url)
-    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+    Main.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar.url)
+    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
     await ctx.author.send(embed=Main)
     Report = await Client.wait_for('message', check=lambda message: message.author == ctx.author)
 
     if isinstance(Report.channel, discord.channel.TextChannel):
         Cancelled = discord.Embed(title="**Ticket System**", description=f"Ticket cancelled, please recreate your ticket and reply in Direct Messages", color=0xe74c3c)
         Cancelled.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Cancelled.set_footer(text=f'Ticket by {ctx.author}.', icon_url=ctx.author.avatar_url)
-        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-        Cancelled.set_thumbnail(url=ctx.author.avatar_url)
+        Cancelled.set_footer(text=f'Ticket by {ctx.author}.', icon_url=ctx.author.avatar.url)
+        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        Cancelled.set_thumbnail(url=ctx.author.avatar.url)
         await ctx.author.send(embed=Cancelled)
     elif isinstance(Report.channel, discord.channel.DMChannel):
         Type = discord.Embed(title="Ticket Type", description='Please select the ticket type you want to make.', color=0x546e7a)
         Type.add_field(name='Please provide `Full Report`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
         Type.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-        Type.set_thumbnail(url=ctx.author.avatar_url)
-        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+        Type.set_thumbnail(url=ctx.author.avatar.url)
+        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
         msg = await ctx.author.send(components=Report_Buttons,embed=Type)
         
@@ -675,9 +1236,9 @@ async def _ticket(ctx):
             Report_Embed.add_field(name='Report: ', value=Report.content, inline=False)
             Report_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
             Report_Embed.add_field(name='Note: ', value='If you do not get a response from a Moderator/Administrator within 48 hours please re-post a ticket.', inline=False)
-            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-            Report_Embed.set_thumbnail(url=ctx.author.avatar_url)
-            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+            Report_Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await Interaction.disable_components()
             await msg.edit(embed=Report_Embed, components=Preview_Buttons)
             Preview_Interaction = await Client.wait_for("button_click", timeout=60)
@@ -692,9 +1253,9 @@ async def _ticket(ctx):
                 Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                 Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                 Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
-                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                Final_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 CurrentType = "None"
                 await Preview_Interaction.disable_components()
                 await ctx.author.send(embed=Final_Embed)
@@ -709,9 +1270,9 @@ async def _ticket(ctx):
                         Closed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                         Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Closed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Closed_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Closed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Report.edit(embed=Closed_Embed)
                         await Main_Interaction.disable_components()
                         await Main_Report.delete()
@@ -723,25 +1284,25 @@ async def _ticket(ctx):
                         Claimed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                         Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Interaction.edit_origin(embed=Claimed_Embed)    
                     elif Main_Interaction.custom_id == 'Note' and Main_Interaction.message.id == Main_Report.id:
                         Note = discord.Embed(title="Ticket System", description=f'Please reply with your note for this ticket.', color=0x546e7a)
                         Note.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Note.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Note.set_thumbnail(url=ctx.author.avatar_url)
-                        Note.set_footer(text=f'Requested by {Main_Interaction.user}.', icon_url=ctx.author.avatar_url)
+                        Note.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Note.set_thumbnail(url=ctx.author.avatar.url)
+                        Note.set_footer(text=f'Requested by {Main_Interaction.user}.', icon_url=ctx.author.avatar.url)
                         await Main_Interaction.user.send(embed=Note)
                         await Main_Interaction.edit_origin(embed=Final_Embed)
                         NoteMsg = await Client.wait_for('message', check=lambda message: message.author.id == Main_Interaction.user.id)
                         if isinstance(NoteMsg.channel, discord.channel.TextChannel):
                             Cancelled2 = discord.Embed(title="**Ticket System**", description=f"Note cancelled, plase click back on note to create a new one.", color=0xe74c3c)
                             Cancelled2.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                            Cancelled2.set_footer(text=f'Ticket by {ctx.author}.', icon_url=ctx.author.avatar_url)
-                            Cancelled2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-                            Cancelled2.set_thumbnail(url=ctx.author.avatar_url)
+                            Cancelled2.set_footer(text=f'Ticket by {ctx.author}.', icon_url=ctx.author.avatar.url)
+                            Cancelled2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                            Cancelled2.set_thumbnail(url=ctx.author.avatar.url)
                             await Main_Interaction.user.send(embed=Cancelled2)
                         elif isinstance(NoteMsg.channel, discord.channel.DMChannel):
                             Text = NoteMsg.content
@@ -755,9 +1316,9 @@ async def _ticket(ctx):
                                 Claimed_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
                                 Claimed_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                                 Claimed_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                Claimed_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                                Claimed_Embed1.set_thumbnail(url=ctx.author.avatar_url)
-                                Claimed_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)                                
+                                Claimed_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                                Claimed_Embed1.set_thumbnail(url=ctx.author.avatar.url)
+                                Claimed_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)                                
                                 await Main_Interaction.user.send(embed=Claimed_Embed1)
                                 await Main_Report.edit(embed=Claimed_Embed1)
                             elif CurrentType == "None" and Main_Interaction.message.id == Main_Report.id:
@@ -766,9 +1327,9 @@ async def _ticket(ctx):
                                 Final_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
                                 Final_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                                 Final_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                Final_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                                Final_Embed1.set_thumbnail(url=ctx.author.avatar_url)
-                                Final_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                                Final_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                                Final_Embed1.set_thumbnail(url=ctx.author.avatar.url)
+                                Final_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                                 await Main_Interaction.user.send(embed=Final_Embed1)
                                 await Main_Report.edit(embed=Final_Embed1)
             elif Preview_Interaction.custom_id == "Reject" and Preview_Interaction.message.id == msg.id:
@@ -777,9 +1338,9 @@ async def _ticket(ctx):
                 Rejected.add_field(name='Report: ', value=Report.content, inline=False)
                 Rejected.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                 Rejected.add_field(name='Note: ', value='Your ticket was closed.', inline=False)
-                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                Rejected.set_thumbnail(url=ctx.author.avatar_url)
-                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                Rejected.set_thumbnail(url=ctx.author.avatar.url)
+                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 await Preview_Interaction.disable_components()
                 await msg.edit(embed=Rejected)
             
@@ -824,9 +1385,9 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
             print(User)
             Embed = discord.Embed(title="Ban System")
             Embed.add_field(name=f'__**{User}**__ was banned successfuly because of: ', value=f'{Reason}', inline=False)
-            Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar_url)
-            Embed.set_thumbnail(url=User.avatar_url)
-            Embed.set_footer(text=f'Banned by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
+            Embed.set_thumbnail(url=User.avatar.url)
+            Embed.set_footer(text=f'Banned by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await ctx.channel.send(embed=Embed)
 
             await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
@@ -877,31 +1438,31 @@ async def _Appeal(ctx):
 
     Message = discord.Embed(title="Appeal System", description='Please check your DMs for further information.', color=0x546e7a)
     Message.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.send(embed=Message)
 
     Main = discord.Embed(title="**Appeal System**", description=f"Please reply with your appeal. Please provide **images/videos** to support your appeal.", color=0xe67e22)
     Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Main.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar_url)
-    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+    Main.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar.url)
+    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
     await ctx.author.send(embed=Main)
     Report = await Client.wait_for('message', check=lambda message: message.author == ctx.author)
 
     if isinstance(Report.channel, discord.channel.TextChannel):
         Cancelled = discord.Embed(title="**Appeal System**", description=f"Appeal cancelled, please recreate your appeal and reply in Direct Messages", color=0xe74c3c)
         Cancelled.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Cancelled.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar_url)
-        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-        Cancelled.set_thumbnail(url=ctx.author.avatar_url)
+        Cancelled.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar.url)
+        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        Cancelled.set_thumbnail(url=ctx.author.avatar.url)
         await ctx.author.send(embed=Cancelled)
     elif isinstance(Report.channel, discord.channel.DMChannel):
         Type = discord.Embed(title="Appeal Type", description='Please select the appeal type you want to make.', color=0x546e7a)
         Type.add_field(name='Please provide `Full Report`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
         Type.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-        Type.set_thumbnail(url=ctx.author.avatar_url)
-        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+        Type.set_thumbnail(url=ctx.author.avatar.url)
+        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
         msg = await ctx.author.send(components=Report_Buttons,embed=Type)
         
@@ -915,9 +1476,9 @@ async def _Appeal(ctx):
             Report_Embed.add_field(name='Report: ', value=Report.content, inline=False)
             Report_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
             Report_Embed.add_field(name='Note: ', value='If you do not get a response from a Moderator/Administrator within 48 hours please re-post a appeal.', inline=False)
-            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-            Report_Embed.set_thumbnail(url=ctx.author.avatar_url)
-            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+            Report_Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await Interaction.disable_components()
             await msg.edit(embed=Report_Embed, components=Preview_Buttons)
             Preview_Interaction = await Client.wait_for("button_click", timeout=60)
@@ -932,9 +1493,9 @@ async def _Appeal(ctx):
                 Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                 Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                 Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
-                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                Final_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 CurrentType = "None"
                 await Preview_Interaction.disable_components()
                 await ctx.author.send(embed=Final_Embed)
@@ -949,9 +1510,9 @@ async def _Appeal(ctx):
                         Closed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                         Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Closed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Closed_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Closed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Report.edit(embed=Closed_Embed)
                         await Main_Interaction.disable_components()
                         await Main_Report.delete()
@@ -963,9 +1524,9 @@ async def _Appeal(ctx):
                         Approved_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                         Approved_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Approved_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Approved_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Approved_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Approved_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Approved_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Approved_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Approved_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Report.edit(embed=Approved_Embed)
                         await Main_Interaction.disable_components()
                         await Main_Report.delete()
@@ -977,25 +1538,25 @@ async def _Appeal(ctx):
                         Claimed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                         Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Interaction.edit_origin(embed=Claimed_Embed)    
                     elif Main_Interaction.custom_id == 'Note' and Main_Interaction.message.id == Main_Report.id:
                         Note = discord.Embed(title="Appeal System", description=f'Please reply with your note for this appeal.', color=0x546e7a)
                         Note.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Note.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Note.set_thumbnail(url=ctx.author.avatar_url)
-                        Note.set_footer(text=f'Requested by {Main_Interaction.user}.', icon_url=ctx.author.avatar_url)
+                        Note.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Note.set_thumbnail(url=ctx.author.avatar.url)
+                        Note.set_footer(text=f'Requested by {Main_Interaction.user}.', icon_url=ctx.author.avatar.url)
                         await Main_Interaction.user.send(embed=Note)
                         await Main_Interaction.edit_origin(embed=Final_Embed)
                         NoteMsg = await Client.wait_for('message', check=lambda message: message.author.id == Main_Interaction.user.id)
                         if isinstance(NoteMsg.channel, discord.channel.TextChannel):
                             Cancelled2 = discord.Embed(title="**Appeal System**", description=f"Note cancelled, plase click back on note to create a new one.", color=0xe74c3c)
                             Cancelled2.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                            Cancelled2.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar_url)
-                            Cancelled2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-                            Cancelled2.set_thumbnail(url=ctx.author.avatar_url)
+                            Cancelled2.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar.url)
+                            Cancelled2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                            Cancelled2.set_thumbnail(url=ctx.author.avatar.url)
                             await Main_Interaction.user.send(embed=Cancelled2)
                         elif isinstance(NoteMsg.channel, discord.channel.DMChannel):
                             Text = NoteMsg.content
@@ -1009,9 +1570,9 @@ async def _Appeal(ctx):
                                 Claimed_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
                                 Claimed_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                                 Claimed_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                Claimed_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                                Claimed_Embed1.set_thumbnail(url=ctx.author.avatar_url)
-                                Claimed_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)                                
+                                Claimed_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                                Claimed_Embed1.set_thumbnail(url=ctx.author.avatar.url)
+                                Claimed_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)                                
                                 await Main_Interaction.user.send(embed=Claimed_Embed1)
                                 await Main_Report.edit(embed=Claimed_Embed1)
                             elif CurrentType == "None" and Main_Interaction.message.id == Main_Report.id:
@@ -1020,9 +1581,9 @@ async def _Appeal(ctx):
                                 Final_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
                                 Final_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                                 Final_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                Final_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                                Final_Embed1.set_thumbnail(url=ctx.author.avatar_url)
-                                Final_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                                Final_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                                Final_Embed1.set_thumbnail(url=ctx.author.avatar.url)
+                                Final_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                                 await Main_Interaction.user.send(embed=Final_Embed1)
                                 await Main_Report.edit(embed=Final_Embed1)
             elif Preview_Interaction.custom_id == "Reject" and Preview_Interaction.message.id == msg.id:
@@ -1031,9 +1592,9 @@ async def _Appeal(ctx):
                 Rejected.add_field(name='Report: ', value=Report.content, inline=False)
                 Rejected.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                 Rejected.add_field(name='Note: ', value='Your appeal was closed.', inline=False)
-                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                Rejected.set_thumbnail(url=ctx.author.avatar_url)
-                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                Rejected.set_thumbnail(url=ctx.author.avatar.url)
+                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 await Preview_Interaction.disable_components()
                 await msg.edit(embed=Rejected)
     
@@ -1077,20 +1638,20 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
         Main = discord.Embed(title="**Infraction System**", description=f"Warned <@{Member.id}> successfully.")
         Main.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
         Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+        Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
 
         
         User = discord.Embed(title="**Infraction System**", description=f"You've received a warning.")
         User.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
         User.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
         User.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        User.set_author(name=f'{Member} ({Member.id})', icon_url=Member.avatar_url)
+        User.set_author(name=f'{Member} ({Member.id})', icon_url=Member.avatar.url)
 
         Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> warned <@{Member.id}>.")
         Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
         Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
         Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
-        Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+        Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
         await ctx.channel.send(embed=Main)
         Msg = await Channel.send(components=Revoke_Buttons, embed=Infraction)
         database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Reason, Date, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Reason,f'{current_Date}, {current_time}', Type))
@@ -1139,7 +1700,7 @@ async def _ClearWarnings(ctx, Member: discord.Member, *, Reason):
         Main = discord.Embed(title="**Infraction System**", description=f"Cleared <@{Member.id}>'s warning logs.")
         Main.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
         Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+        Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
         await ctx.channel.send(embed=Main)
         for record in records:
             database.execute("DELETE FROM Warning_Logs WHERE UserID=?", (Member.id,))
@@ -1184,8 +1745,8 @@ Joined: {Member.joined_at} UCT
 Created at: {Member.created_at}
 ''', inline=False)
 
-        Main.set_author(name=f'{Member.id}', icon_url=MemberTag.avatar_url)
-        Main.set_image(url=MemberTag.avatar_url)
+        Main.set_author(name=f'{Member.id}', icon_url=MemberTag.avatar.url)
+        Main.set_image(url=MemberTag.avatar.url)
         await ctx.channel.send(embed=Main)
     else:
         await MissingPermission(ctx, ctx.author)
@@ -1230,7 +1791,7 @@ async def _Case(ctx, Code):
         Final_Embed.add_field(name=f'Infracted for:',value=record3[0] , inline=False)
         Final_Embed.add_field(name=f'Infracted by:',value=f'<@{record1[0]}>', inline=False)
         Final_Embed.add_field(name='Date: ', value=f'{record4[0]}', inline=False)
-        Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
         await ctx.send(embed=Final_Embed)
 
 
@@ -1239,7 +1800,7 @@ async def _Case(ctx, Code):
 async def _Rule(ctx):
     await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
     Main2 = discord.Embed(title="**Rules**", description=f"All further information was directed into your Direct Messages/DMs.", color=0x7289da)
-    Main2.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Main2.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.send(embed=Main2)
 
     Main = discord.Embed(title="**__Rules__**", description=f"All rules must be followed at all times. Not doing so will result in any type of punishments.", color = 0x9b59b6)
@@ -1288,11 +1849,11 @@ async def _Lock(ctx, Channel: discord.TextChannel, Amount: int, *,Reason):
     if In_Group == True or ctx.author.guild_permissions.administrator:
         if Amount <=9:
             Close_Embed = discord.Embed(title="Lock System", description=f'The minutes picked is too short, please use 10 seconds or more.', color=0xe67e22)
-            Close_Embed.set_footer(text=f'You should contact a system developer if you think this is a mistake.', icon_url=ctx.author.avatar_url)
+            Close_Embed.set_footer(text=f'You should contact a system developer if you think this is a mistake.', icon_url=ctx.author.avatar.url)
             await ctx.send(embed=Close_Embed)
         else:
             Final_Embed = discord.Embed(title="Lock System", description=f'<#{Channel.id}> was locked for {Amount} seconds.', color=0x546e7a)
-            Final_Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Final_Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await Logging(ctx, ctx.message.content,ctx.author, ctx.author, f"Affected channel is <#{Channel.id}> for {Amount} seconds with the reason: {Reason}", ctx.channel)
             overwrite = Channel.overwrites_for(ctx.guild.default_role)
             overwrite.send_messages = False
@@ -1300,7 +1861,7 @@ async def _Lock(ctx, Channel: discord.TextChannel, Amount: int, *,Reason):
             await Channel.send(embed=Final_Embed)
             time.sleep(Amount)
             Embed = discord.Embed(title="Lock System", description=f'<#{Channel.id}> was unlocked.', color=0x546e7a)
-            Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar.url)
             overwrite2 = Channel.overwrites_for(ctx.guild.default_role)
             overwrite2.send_messages = True
             await Channel.set_permissions(ctx.guild.default_role, overwrite=overwrite2)
@@ -1331,18 +1892,18 @@ async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
                 await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
                 Embed = discord.Embed(title="Ban System")
                 Embed.add_field(name=f'__**{User}**__ was unbanned successfuly with the reason: ', value=f'{Reason}', inline=False)
-                Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar_url)
-                Embed.set_thumbnail(url=User.avatar_url)
-                Embed.set_footer(text=f'Unbanned by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
+                Embed.set_thumbnail(url=User.avatar.url)
+                Embed.set_footer(text=f'Unbanned by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 await ctx.channel.send(embed=Embed)
                 await ctx.guild.unban(user)
                 break
             elif User not in banned_members:
                 Embed2 = discord.Embed(title="Ban System")
                 Embed2.add_field(name=f'__**{User}**__ can not be unbanned because he wasn not banned in the first place.', value=f'{Reason}', inline=False)
-                Embed2.set_author(name=f'{User} ({User.id})', icon_url=User.avatar_url)
-                Embed2.set_thumbnail(url=User.avatar_url)
-                Embed2.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                Embed2.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
+                Embed2.set_thumbnail(url=User.avatar.url)
+                Embed2.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 await ctx.channel.send(embed=Embed2)
                 break
     else:
@@ -1366,8 +1927,8 @@ async def _Nick(ctx, Member: Union[discord.Member,discord.Object],*,Nick):
         await Member.edit(nick=Nick)
         Embed = discord.Embed(title="Nickname System")
         Embed.add_field(name=f'__**{User}**__ username was successfuly changed to ', value=f'{Nick}', inline=False)
-        Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar_url)
-        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
+        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
         await ctx.send(embed=Embed)
     else:
         await MissingPermission(ctx, ctx.author)
@@ -1406,9 +1967,9 @@ async def _SoftBan(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
         else:
             Embed = discord.Embed(title="Soft Ban System")
             Embed.add_field(name=f'__**{User}**__ was soft banned successfuly for: ', value=f'{Reason}', inline=False)
-            Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar_url)
-            Embed.set_thumbnail(url=User.avatar_url)
-            Embed.set_footer(text=f'Soft Banned by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
+            Embed.set_thumbnail(url=User.avatar.url)
+            Embed.set_footer(text=f'Soft Banned by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await ctx.channel.send(embed=Embed)
 
             await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
@@ -1444,7 +2005,7 @@ async def _ServerInfo(ctx):
     Embed.add_field(name=f'The server AFK channel is: ', value=f'{ctx.guild.afk_channel}', inline=False)
     Embed.set_author(name=f'{ctx.guild.name} ({ctx.guild.id})', icon_url=ctx.guild.icon_url)
     Embed.set_thumbnail(url=ctx.guild.icon_url)
-    Embed.set_footer(text=f'Requested {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Embed.set_footer(text=f'Requested {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.send(embed=Embed)
 
 
@@ -1490,8 +2051,8 @@ async def _Deafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason):
         await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
         Embed = discord.Embed(title="Deafen System")
         Embed.add_field(name=f'__**{Member}**__ was successfuly voice deafened and muted.', value=f'Reason: {Reason}', inline=False)
-        Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar_url)
-        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar.url)
+        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
         database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
         database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
         await ctx.send(embed=Embed)
@@ -1510,8 +2071,8 @@ async def _Undeafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason)
         await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
         Embed = discord.Embed(title="Deafen System")
         Embed.add_field(name=f'__**{Member}**__ was successfuly voice undeafened and unmuted.',value=f'Reason: {Reason}', inline=False)
-        Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar_url)
-        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar.url)
+        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
         await ctx.send(embed=Embed)
         await Member.edit(deafen = False)
         await Member.edit(mute = False)
@@ -1559,31 +2120,31 @@ async def _Post(ctx):
 
     Message = discord.Embed(title="Market System", description='Please check your DMs for further information.', color=0x546e7a)
     Message.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.send(embed=Message)
 
     Main = discord.Embed(title="**Market System**", description=f"Please reply with your post. Please provide **images/videos** to support your post.", color=0xe67e22)
     Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Main.set_footer(text=f'Market by {ctx.author}.', icon_url=ctx.author.avatar_url)
-    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+    Main.set_footer(text=f'Market by {ctx.author}.', icon_url=ctx.author.avatar.url)
+    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
     await ctx.author.send(embed=Main)
     Report = await Client.wait_for('message', check=lambda message: message.author == ctx.author)
 
     if isinstance(Report.channel, discord.channel.TextChannel):
         Cancelled = discord.Embed(title="**Market System**", description=f"Market cancelled, please recreate your post and reply in Direct Messages", color=0xe74c3c)
         Cancelled.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Cancelled.set_footer(text=f'Market by {ctx.author}.', icon_url=ctx.author.avatar_url)
-        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-        Cancelled.set_thumbnail(url=ctx.author.avatar_url)
+        Cancelled.set_footer(text=f'Market by {ctx.author}.', icon_url=ctx.author.avatar.url)
+        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        Cancelled.set_thumbnail(url=ctx.author.avatar.url)
         await ctx.author.send(embed=Cancelled)
     elif isinstance(Report.channel, discord.channel.DMChannel):
         Type = discord.Embed(title="Marketplace post Type", description='Please select the Marketplace post type you want to make.', color=0x546e7a)
         Type.add_field(name='Please provide `Full post`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
         Type.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-        Type.set_thumbnail(url=ctx.author.avatar_url)
-        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+        Type.set_thumbnail(url=ctx.author.avatar.url)
+        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
         msg = await ctx.author.send(components=Report_Buttons,embed=Type)
         
@@ -1598,9 +2159,9 @@ async def _Post(ctx):
             Report_Embed.add_field(name='Post: ', value=Report.content, inline=False)
             Report_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
             Report_Embed.add_field(name='Note: ', value='If you do not get a response from a Moderator/Administrator within 48 hours please re-post a appeal.', inline=False)
-            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-            Report_Embed.set_thumbnail(url=ctx.author.avatar_url)
-            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+            Report_Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await Interaction.disable_components()
             await msg.edit(embed=Report_Embed, components=Preview_Buttons)
             Preview_Interaction = await Client.wait_for("button_click", timeout=60)
@@ -1613,9 +2174,9 @@ async def _Post(ctx):
                 Final_Embed.add_field(name='Post: ', value=Report.content, inline=False)
                 Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                 Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
-                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                Final_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 CurrentType = "None"
                 await Preview_Interaction.disable_components()
                 await ctx.author.send(embed=Final_Embed)
@@ -1630,9 +2191,9 @@ async def _Post(ctx):
                         Closed_Embed.add_field(name='Post: ', value=Report.content, inline=False)
                         Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Closed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Closed_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Closed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Report.edit(embed=Closed_Embed)
                         await Main_Interaction.disable_components()
                         await Main_Report.delete()
@@ -1644,16 +2205,16 @@ async def _Post(ctx):
                         Approved_Embed.add_field(name='Post: ', value=Report.content, inline=False)
                         Approved_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Approved_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Approved_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Approved_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Approved_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Approved_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Approved_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Approved_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
                         Post_Embed = discord.Embed(title=f"Market Post by {ctx.author}/({ctx.author.id})", description=f'Post Type: {TypeInteraction}')
                         Post_Embed.add_field(name='Post: ', value=Report.content, inline=False)
                         Post_Embed.add_field(name='Contact Information: ', value=f'<@{ctx.author.id}>', inline=False)
                         Post_Embed.add_field(name='Payment Type: ', value=f'Upon completion', inline=False)
                         Post_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Post_Embed.set_footer(text=f'Approved by {Main_Interaction.user} ({Main_Interaction.user.id})', icon_url=Main_Interaction.user.avatar_url )
+                        Post_Embed.set_footer(text=f'Approved by {Main_Interaction.user} ({Main_Interaction.user.id})', icon_url=Main_Interaction.user.avatar.url )
 
 
                         await Main_Report.edit(embed=Approved_Embed)
@@ -1692,9 +2253,9 @@ async def _Post(ctx):
                         Claimed_Embed.add_field(name='Post: ', value=Report.content, inline=False)
                         Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Interaction.edit_origin(embed=Claimed_Embed)    
             elif Preview_Interaction.custom_id == "Reject" and Preview_Interaction.message.id == msg.id:
                 Rejected = discord.Embed(title=f"Appeal Closed by {Preview_Interaction.user.id}", description=f'Post Type: {Interaction.custom_id}', color=0xe74c3c)
@@ -1702,9 +2263,9 @@ async def _Post(ctx):
                 Rejected.add_field(name='Post: ', value=Report.content, inline=False)
                 Rejected.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                 Rejected.add_field(name='Note: ', value='Your appeal was closed.', inline=False)
-                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                Rejected.set_thumbnail(url=ctx.author.avatar_url)
-                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                Rejected.set_thumbnail(url=ctx.author.avatar.url)
+                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 await Preview_Interaction.disable_components()
                 await msg.edit(embed=Rejected)
 
@@ -1768,31 +2329,31 @@ async def _Application(ctx):
 
     Message = discord.Embed(title="Application System", description='Please check your DMs for further information.', color=0x546e7a)
     Message.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.send(embed=Message)
 
     Main = discord.Embed(title="**Application System**", description=f"Please reply with your Application. Please provide **images/videos** of your portfolio to support your Application.", color=0xe67e22)
     Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Main.set_footer(text=f'Application by {ctx.author}.', icon_url=ctx.author.avatar_url)
-    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
+    Main.set_footer(text=f'Application by {ctx.author}.', icon_url=ctx.author.avatar.url)
+    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
     await ctx.author.send(embed=Main)
     Report = await Client.wait_for('message', check=lambda message: message.author == ctx.author)
 
     if isinstance(Report.channel, discord.channel.TextChannel):
         Cancelled = discord.Embed(title="**Application System**", description=f"Application cancelled, please recreate your Application and reply in Direct Messages", color=0xe74c3c)
         Cancelled.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Cancelled.set_footer(text=f'Application by {ctx.author}.', icon_url=ctx.author.avatar_url)
-        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-        Cancelled.set_thumbnail(url=ctx.author.avatar_url)
+        Cancelled.set_footer(text=f'Application by {ctx.author}.', icon_url=ctx.author.avatar.url)
+        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        Cancelled.set_thumbnail(url=ctx.author.avatar.url)
         await ctx.author.send(embed=Cancelled)
     elif isinstance(Report.channel, discord.channel.DMChannel):
         Type = discord.Embed(title="Application Type", description='Please select the Application type you want to make.', color=0x546e7a)
         Type.add_field(name='Please provide `Full Report`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
         Type.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-        Type.set_thumbnail(url=ctx.author.avatar_url)
-        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+        Type.set_thumbnail(url=ctx.author.avatar.url)
+        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
         msg = await ctx.author.send(components=Report_Buttons,embed=Type)
         
@@ -1806,9 +2367,9 @@ async def _Application(ctx):
             Report_Embed.add_field(name='Report: ', value=Report.content, inline=False)
             Report_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
             Report_Embed.add_field(name='Note: ', value='If you do not get a response from a Moderator/Administrator within 48 hours please re-post a Application.', inline=False)
-            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-            Report_Embed.set_thumbnail(url=ctx.author.avatar_url)
-            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+            Report_Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await Interaction.disable_components()
             await msg.edit(embed=Report_Embed, components=Preview_Buttons)
             Preview_Interaction = await Client.wait_for("button_click", timeout=60)
@@ -1823,9 +2384,9 @@ async def _Application(ctx):
                 Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                 Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                 Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
-                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                Final_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 CurrentType = "None"
                 await Preview_Interaction.disable_components()
                 await ctx.author.send(embed=Final_Embed)
@@ -1840,9 +2401,9 @@ async def _Application(ctx):
                         Closed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                         Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Closed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Closed_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Closed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Report.edit(embed=Closed_Embed)
                         await Main_Interaction.disable_components()
                         await Main_Report.delete()
@@ -1855,9 +2416,9 @@ async def _Application(ctx):
                         Approved_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                         Approved_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Approved_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Approved_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Approved_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Approved_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Approved_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Approved_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Approved_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Report.edit(embed=Approved_Embed)
                         await Main_Interaction.disable_components()
                         await Main_Report.delete()
@@ -1870,25 +2431,25 @@ async def _Application(ctx):
                         Claimed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                         Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                         Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar_url)
-                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Interaction.edit_origin(embed=Claimed_Embed)    
                     elif Main_Interaction.custom_id == 'Note' and Main_Interaction.message.id == Main_Report.id:
                         Note = discord.Embed(title="Application System", description=f'Please reply with your note for this Application.', color=0x546e7a)
                         Note.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Note.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                        Note.set_thumbnail(url=ctx.author.avatar_url)
-                        Note.set_footer(text=f'Requested by {Main_Interaction.user}.', icon_url=ctx.author.avatar_url)
+                        Note.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                        Note.set_thumbnail(url=ctx.author.avatar.url)
+                        Note.set_footer(text=f'Requested by {Main_Interaction.user}.', icon_url=ctx.author.avatar.url)
                         await Main_Interaction.user.send(embed=Note)
                         await Main_Interaction.edit_origin(embed=Final_Embed)
                         NoteMsg = await Client.wait_for('message', check=lambda message: message.author.id == Main_Interaction.user.id)
                         if isinstance(NoteMsg.channel, discord.channel.TextChannel):
                             Cancelled2 = discord.Embed(title="**Application System**", description=f"Note cancelled, plase click back on note to create a new one.", color=0xe74c3c)
                             Cancelled2.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                            Cancelled2.set_footer(text=f'Application by {ctx.author}.', icon_url=ctx.author.avatar_url)
-                            Cancelled2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar_url)
-                            Cancelled2.set_thumbnail(url=ctx.author.avatar_url)
+                            Cancelled2.set_footer(text=f'Application by {ctx.author}.', icon_url=ctx.author.avatar.url)
+                            Cancelled2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                            Cancelled2.set_thumbnail(url=ctx.author.avatar.url)
                             await Main_Interaction.user.send(embed=Cancelled2)
                         elif isinstance(NoteMsg.channel, discord.channel.DMChannel):
                             Text = NoteMsg.content
@@ -1902,9 +2463,9 @@ async def _Application(ctx):
                                 Claimed_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
                                 Claimed_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                                 Claimed_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                Claimed_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                                Claimed_Embed1.set_thumbnail(url=ctx.author.avatar_url)
-                                Claimed_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)                                
+                                Claimed_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                                Claimed_Embed1.set_thumbnail(url=ctx.author.avatar.url)
+                                Claimed_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)                                
                                 await Main_Interaction.user.send(embed=Claimed_Embed1)
                                 await Main_Report.edit(embed=Claimed_Embed1)
                             elif CurrentType == "None" and Main_Interaction.message.id == Main_Report.id:
@@ -1913,9 +2474,9 @@ async def _Application(ctx):
                                 Final_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
                                 Final_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                                 Final_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                Final_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                                Final_Embed1.set_thumbnail(url=ctx.author.avatar_url)
-                                Final_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                                Final_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                                Final_Embed1.set_thumbnail(url=ctx.author.avatar.url)
+                                Final_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                                 await Main_Interaction.user.send(embed=Final_Embed1)
                                 await Main_Report.edit(embed=Final_Embed1)
             elif Preview_Interaction.custom_id == "Reject" and Preview_Interaction.message.id == msg.id:
@@ -1924,9 +2485,9 @@ async def _Application(ctx):
                 Rejected.add_field(name='Report: ', value=Report.content, inline=False)
                 Rejected.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
                 Rejected.add_field(name='Note: ', value='Your Application was closed.', inline=False)
-                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar_url)
-                Rejected.set_thumbnail(url=ctx.author.avatar_url)
-                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar_url)
+                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+                Rejected.set_thumbnail(url=ctx.author.avatar.url)
+                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 await Preview_Interaction.disable_components()
                 await msg.edit(embed=Rejected)
 
@@ -1955,7 +2516,6 @@ async def _Alert(ctx, Channel_Location: discord.TextChannel,Message_Id:int):
 ```
     ''', inline=False)
     await Channel.send("All active <@&792423903284822037>, please handle this situation", embed=Message)
-
 
 
 Client.run('OTI1NTQ1MjkxNTMxMzA0OTYw.YcurOQ.u4NkEE8jgXhFEzBDs_mQEwIb-S4') 
