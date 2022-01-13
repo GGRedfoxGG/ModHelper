@@ -96,7 +96,7 @@ class database:
 async def on_ready():
     await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = " The Elite Developers"))
     print('Client finished setting up')
-    guild = Client.get_guild(697064724893794314)
+    guild = Client.get_guild(930950743396061224)
     for black in Blacklisted:
         User = await Client.fetch_user(black)
         print(User)
@@ -125,7 +125,7 @@ async def on_command_error(ctx, error):
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
-    Channel = Client.get_channel(925548301531643904)
+    Channel = Client.get_channel(931211066837454948)
     Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
     Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar.url)
     Embed.set_thumbnail(url=ctx.author.avatar.url)
@@ -139,13 +139,13 @@ async def on_command_error(ctx, error):
 
 async def RoleChecker(ctx, User):
 
-    guild = Client.get_guild(697064724893794314)
+    guild = Client.get_guild(930950743396061224)
     role1 = [
-        discord.utils.get(guild.roles, id=925535987617124453), #Developer
-        discord.utils.get(guild.roles, id=792417972295696424), #Founder
-        discord.utils.get(guild.roles, id=792417979005403197), #CM
-        discord.utils.get(guild.roles, id=792417974149316618), #Trusted
-        discord.utils.get(guild.roles, id=792417969703354378), #Staff
+        discord.utils.get(guild.roles, id=930963340635803679), #CM
+        discord.utils.get(guild.roles, id=930963250353414155), #Admin
+        discord.utils.get(guild.roles, id=930979729807409182), #DM
+        discord.utils.get(guild.roles, id=930956369090211870), #Trusted
+        discord.utils.get(guild.roles, id=930962944378929173), #Staff
     ]
     for Main in role1:
         for member in guild.members:
@@ -165,7 +165,7 @@ async def MissingPermission(ctx, Author):
 
 
 async def Logging(ctx, cmd, author: None, effected_member: None, Reason: None, Channelused: None):
-    Channel = Client.get_channel(925538233285226537)
+    Channel = Client.get_channel(931211162924769300)
     today = date.today()
     now = datetime.now()
 
@@ -448,7 +448,7 @@ async def _Purge(ctx, Amount: int):
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             current_Date = today.strftime("%B %d, %Y")
-            Channel = Client.get_channel(925548301531643904)
+            Channel = Client.get_channel(931211066837454948)
             Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
             Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
             Embed.set_thumbnail(url=ctx.author.avatar.url)
@@ -479,7 +479,7 @@ async def _Slowmode(ctx, Amount: int):
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             current_Date = today.strftime("%B %d, %Y")
-            Channel = Client.get_channel(925548301531643904)
+            Channel = Client.get_channel(931211066837454948)
             Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
             Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
             Embed.add_field(name="Error Message:", value=f'__**Please enter a valid number.**__', inline=False)
@@ -697,8 +697,8 @@ async def _ticket(ctx):
                 Text = None
                 database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
                 Database.commit()
-                Channel = Client.get_channel(925539652662861914)
-                Channel2 = Client.get_channel(925539281517297674)
+                Channel = Client.get_channel(931211113704591460)
+                Channel2 = Client.get_channel(931211089314742303)
                 Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeInteraction}', color=0x546e7a)
                 Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
                 Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
@@ -716,7 +716,7 @@ async def _ticket(ctx):
                     Main_Interaction = await Client.wait_for("button_click", timeout=31556926)
                     if Main_Interaction.custom_id == 'Close' and Main_Interaction.message.id == Main_Report.id:
                         CurrentType = "Close"
-                        Closed_Embed = discord.Embed(title=f"Ticket Closed by {Main_Interaction.user}", description=f'Ticket Type: {TypeInteraction}', color=0xe74c3c)
+                        Closed_Embed = discord.Embed(title=f"Ticket Closed by {Main_Interaction.user}", description=f'Ticket Type: {TypeInteraction}', color=0x1f8b4c)
                         Closed_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
                         Closed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
                         Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
@@ -849,8 +849,7 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
     else:
         await MissingPermission(ctx, ctx.author)
 
-@Client.command(aliases = ['Appeal'],  pass_context=True)
-async def _Appeal(ctx):
+
     await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
     Preview_Buttons = [
         [
@@ -1083,7 +1082,7 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
-    Channel = Client.get_channel(704274108283748373)
+    Channel = Client.get_channel(931211310581035028)
     if In_Group == True or ctx.author.guild_permissions.administrator:
         await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
         Main = discord.Embed(title="**Infraction System**", description=f"Warned <@{Member.id}> successfully.")
@@ -1280,10 +1279,10 @@ async def _Rule(ctx):
 
 `+` 12. Refrain from using __sexual remarks__ (sexual joking, sexual comments etc...)
 
-`+` 13. All commands used should be used in its right [channels](https://discord.com/channels/697064724893794314/704653260333645844)
+`+` 13. All commands used should be used in its right [channels](https://discord.com/channels/930950743396061224/931210732060692490)
 
 ''', inline=False)
-    Main.set_image(url="https://media.discordapp.net/attachments/843439250817286164/925560535230062632/DevLogo2.0.png?width=169&height=169")
+    Main.set_image(url="https://media.discordapp.net/attachments/930963981114417182/931210544369782834/New1.png?width=410&height=410")
     await ctx.author.send(embed=Main)
 
 
