@@ -343,8 +343,6 @@ async def _Help(ctx):
 
 `,Case [Case ID]`
 
-`,Appeal [Stirke Code] [Title] [Appeal]`
-
 `,Defean [User] [Reason]`
 
 `,Undefean [User] [Reason]` 
@@ -416,9 +414,6 @@ async def _Help(ctx):
 
 `,RandomNumber [First number] [Second number]`
 
-`,Application`
-
-`,Post`
             
             ''', inline=False)
             Misc.set_footer(text=f' Page 5/5', icon_url=ctx.author.avatar.url)
