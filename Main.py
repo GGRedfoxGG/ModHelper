@@ -30,8 +30,7 @@ import traceback
 import sys
 from collections import defaultdict
 
-import discord, discord.channel, discord.http, discord.state
-from discord.ext import commands
+import discord.http, discord.state
 from discord.utils import MISSING
 
 
@@ -537,7 +536,7 @@ async def _Kick(ctx, Member: discord.Member,*, Reason):
     else:
         await MissingPermission(ctx, ctx.author)
 
-@Client.command(aliases = ['Inf', 'Infractions', 'Warnings', 'Warnlist'],  pass_context=True)
+@Client.command(aliases = ['Inf', 'Infractions', 'Warnings', 'Warnlist', 'i'],  pass_context=True)
 async def _Infraction(ctx, Member: Union[discord.Member,discord.Object]):
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
@@ -1184,7 +1183,6 @@ async def _User(ctx, Member: Union[discord.Member,discord.Object]):
 User Id: {Member.id}
 User Tag: {MemberTag}
 User: <@{Member.id}>
-Status: {Member.activity}
 Nickname: {Member.display_name}
 Joined: {Member.joined_at} UCT
 Created at: {Member.created_at}
@@ -1248,11 +1246,9 @@ async def _Rule(ctx):
     Main2.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     await ctx.send(embed=Main2)
 
-    Main = discord.Embed(title="**__Rules__**", description=f"All rules must be followed at all times. Not doing so will result in any type of punishments.", color = 0x9b59b6)
+    Main = discord.Embed(title="**__Rules__**", description=f"All rules must be followed at all times. Not doing so will result in any type of punishments.", color = 0x7289da)
     Main.add_field(name='Rules: ', value=f'''
-
-
-`+` 1. All chat rooms are to remain clean. __(No dramas, no toxicity, no fights, no arguments)__
+`+` 1. All chat rooms are to remain clean. __(No dramas, no toxicity, no fights, no arguments, no sexual remarks)__
 
 `+` 2. You are to respect yourself and those with you.
 
@@ -1260,7 +1256,7 @@ async def _Rule(ctx):
 
 `+` 4. __Harassment__ shall not be tolerated.
 
-`+` 5. __Leaking__ any **personal information** is not tolerated, and will lead to your removal **permanently**.
+`+` 5. __Leaking__ any **personal information** is not tolerated or classified information, and will lead to your removal **permanently**.
 
 `+` 6. Make sure to use each text chat for their correct purpose.
 
@@ -1270,12 +1266,9 @@ async def _Rule(ctx):
 
 `+` 10. __Swearing__ is allowed but do not do it excessively or use it to offend or insult someone.
 
-`+` 11. Do not __spam__ in any channel or mic spam in any VC.
+`+` 11. All commands used should be used in its right [channels](https://discord.com/channels/930950743396061224/931210732060692490).
 
-`+` 12. Refrain from using __sexual remarks__ (sexual joking, sexual comments etc...)
-
-`+` 13. All commands used should be used in its right [channels](https://discord.com/channels/930950743396061224/931210732060692490)
-
+`+ 12.` All HiddenDevs rules are applicable here.
 ''', inline=False)
     Main.set_image(url="https://media.discordapp.net/attachments/930963981114417182/931210544369782834/New1.png?width=410&height=410")
     await ctx.author.send(embed=Main)
