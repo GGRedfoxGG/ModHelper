@@ -13,7 +13,7 @@ from discord.enums import try_enum
 from discord.errors import PrivilegedIntentsRequired
 from discord.ext import commands
 from discord.ext.commands.core import command
-from discord_components import ButtonStyle, Button, Select, SelectOption, ComponentsClient, DiscordComponents, client, component, Interaction, interaction 
+from interactions import ButtonStyle, Button, SelectOption, client, component, Interaction 
 import asyncio
 import certifi
 import aiohttp
@@ -34,15 +34,6 @@ import discord.http, discord.state
 from discord.utils import MISSING
 
 
-
-
-Reddit = praw.Reddit(client_id = "CPgb5oYUc0IeDVDGIZApeg",
-    client_secret = "Rl0lYTLlbmnoYqSeurD6sN69IlsUQA",
-    username = "XI-AI",
-    password = "NoOneShouldKNOWthatButMELOL_12453",
-    user_agent = "XI-AI by /u/Bot_Development"
-    ,check_for_async=False
-    )
 
 
 Ticket_Channel = None
@@ -105,8 +96,6 @@ async def on_ready():
         Database.commit()
 
 Blacklisted = []
- 
-DiscordComponents(Client)
 
 @Client.event
 async def on_member_join(Member):
@@ -191,8 +180,8 @@ async def _announce(ctx, Channel: discord.TextChannel, Mode , Title, *,Annonceme
     Mode2 = None
     buttons2 = [
         [
-        Button(style=ButtonStyle.red, label='Reject', custom_id='Reject'),
-        Button(style=ButtonStyle.green, label='Accept', custom_id='Accept'),
+        Button(style=ButtonStyle.DANGER, label='Reject', custom_id='Reject'),
+        Button(style=ButtonStyle.SUCCESS, label='Accept', custom_id='Accept'),
         ]
     ]
     await RoleChecker(ctx, ctx.author)
@@ -211,7 +200,7 @@ async def _announce(ctx, Channel: discord.TextChannel, Mode , Title, *,Annonceme
         Preview.add_field(name='**__Announcement mentions: __**', value=Mode, inline=False)
         Preview.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
         Preview.set_thumbnail(url=ctx.author.avatar.url)
-        msg = await ctx.send(components = buttons2, embed=Preview)
+        msg = await ctx.send(component = buttons2, embed=Preview)
         Interaction_Preview = await Client.wait_for("button_click", timeout=2629743,check=lambda inter: inter.message.id == msg.id)
         if Interaction_Preview.custom_id=='Accept' and Mode2 == "Everyone":
             await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}> with @everyone mention with announcement: __{Annoncement}__", ctx.channel)
@@ -226,7 +215,7 @@ async def _announce(ctx, Channel: discord.TextChannel, Mode , Title, *,Annonceme
             Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
             Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await msg.edit(embed=Accepted)
-            await Interaction_Preview.disable_components()
+            await Interaction_Preview.disable_component()
             await Channel.send("@everyone", embed=Main)
         elif Interaction_Preview.custom_id=='Accept' and Mode2 == "Here":
             await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}> with @here mention with announcement: __{Annoncement}__", ctx.channel)
@@ -241,7 +230,7 @@ async def _announce(ctx, Channel: discord.TextChannel, Mode , Title, *,Annonceme
             Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
             await msg.edit(embed=Accepted)
-            await Interaction_Preview.disable_components()
+            await Interaction_Preview.disable_component()
             await Channel.send("@here", embed=Main)
         elif Interaction_Preview.custom_id=='Accept' and Mode2 == "None":
             await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}> with no mentions with announcement: __{Annoncement}__", ctx.channel)
@@ -256,7 +245,7 @@ async def _announce(ctx, Channel: discord.TextChannel, Mode , Title, *,Annonceme
             Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
             Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await msg.edit(embed=Accepted)
-            await Interaction_Preview.disable_components()
+            await Interaction_Preview.disable_component()
             await Channel.send(embed=Main)
         elif Interaction_Preview.custom_id=='Reject':
             Main = discord.Embed(title=f"**{Title}**", description=f"Full announcement rejected by {ctx.author}: ", color=0xe74c3c)
@@ -265,7 +254,7 @@ async def _announce(ctx, Channel: discord.TextChannel, Mode , Title, *,Annonceme
             Main.set_thumbnail(url=ctx.author.avatar.url)
             Main.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await msg.edit(embed=Main)
-            await Interaction_Preview.disable_components()
+            await Interaction_Preview.disable_component()
     else:
         await MissingPermission(ctx, ctx.author)
 
@@ -299,7 +288,7 @@ async def _Help(ctx):
 
     Preview_Buttons = [
         [
-        Button(style=ButtonStyle.green, label='>', custom_id='Next'),
+        Button(style=ButtonStyle.SUCCESS, label='>', custom_id='Next'),
         ]
     ]
     Main = discord.Embed(title="**Help System**", description=f"All further information is now handled in Direct Messages.", color=0x7289da)
@@ -310,7 +299,7 @@ async def _Help(ctx):
     Home.set_thumbnail(url=ctx.author.avatar.url)
     Home.set_footer(text=f' Page 1/5', icon_url=ctx.author.avatar.url)
     Home.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-    msg = await ctx.author.send(components=Preview_Buttons, embed=Home)
+    msg = await ctx.author.send(component=Preview_Buttons, embed=Home)
     Interaction_Home= await Client.wait_for("button_click", timeout=2629743,check=lambda inter: inter.message.id == msg.id)
     Current_Page = 1
     while True:
@@ -357,7 +346,7 @@ async def _Help(ctx):
             ''', inline=False)
             Moderation.set_footer(text=f' Page 2/5', icon_url=ctx.author.avatar.url)
             Moderation.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            await Interaction_Home.edit_origin(components=Preview_Buttons, embed=Moderation)
+            await Interaction_Home.edit_origin(component=Preview_Buttons, embed=Moderation)
             Interaction_Moderation= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
         elif Interaction_Moderation.custom_id == 'Next' and Current_Page == 2:
             Current_Page = Current_Page + 1
@@ -386,7 +375,7 @@ async def _Help(ctx):
             ''', inline=False)
             Information.set_footer(text=f' Page 3/5', icon_url=ctx.author.avatar.url)
             Information.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            await Interaction_Moderation.edit_origin(components=Preview_Buttons, embed=Information)
+            await Interaction_Moderation.edit_origin(component=Preview_Buttons, embed=Information)
             Interaction_Information= await Client.wait_for("button_click", timeout=2629743,check=lambda inter: inter.message.id == msg.id)
         elif Interaction_Information.custom_id == 'Next' and Current_Page == 3:
             Current_Page = Current_Page + 1
@@ -401,7 +390,7 @@ async def _Help(ctx):
             ''', inline=False)
             Fun.set_footer(text=f' Page 4/5', icon_url=ctx.author.avatar.url)
             Fun.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            await Interaction_Information.edit_origin(components=Preview_Buttons, embed=Fun)
+            await Interaction_Information.edit_origin(component=Preview_Buttons, embed=Fun)
             Interaction_Fun= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
         elif Interaction_Fun.custom_id == 'Next' and Current_Page == 4:
             Current_Page = Current_Page + 1
@@ -417,11 +406,11 @@ async def _Help(ctx):
             ''', inline=False)
             Misc.set_footer(text=f' Page 5/5', icon_url=ctx.author.avatar.url)
             Misc.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            await Interaction_Fun.edit_origin(components=Preview_Buttons, embed=Misc)
+            await Interaction_Fun.edit_origin(component=Preview_Buttons, embed=Misc)
             Interaction_Misc= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
         elif Interaction_Misc.custom_id == 'Next' and Current_Page == 5:
             Current_Page = 1
-            await Interaction_Misc.edit_origin(components=Preview_Buttons, embed=Home)
+            await Interaction_Misc.edit_origin(component=Preview_Buttons, embed=Home)
             Interaction_Home= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
 
 
@@ -609,22 +598,22 @@ async def _ticket(ctx):
     await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
     Preview_Buttons = [
         [
-        Button(style=ButtonStyle.red, label='Reject', custom_id='Reject'),
-        Button(style=ButtonStyle.green, label='Accept', custom_id='Accept'),
+        Button(style=ButtonStyle.DANGER, label='Reject', custom_id='Reject'),
+        Button(style=ButtonStyle.SUCCESS, label='Accept', custom_id='Accept'),
         ]
     ]
     Report_Buttons = [
         [
-        Button(style=ButtonStyle.green, label='Feedback', custom_id='Feedback'),
-        Button(style=ButtonStyle.green, label='Bug Report', custom_id='Bug Report'),
-        Button(style=ButtonStyle.red, label='Developer Report', custom_id='Developer Report'),
+        Button(style=ButtonStyle.SUCCESS, label='Feedback', custom_id='Feedback'),
+        Button(style=ButtonStyle.SUCCESS, label='Bug Report', custom_id='Bug Report'),
+        Button(style=ButtonStyle.DANGER, label='Developer Report', custom_id='Developer Report'),
         ]
     ]
     Final_Buttons = [
         [
-        Button(style=ButtonStyle.green, label='Claim', custom_id='Claim'),
-        Button(style=ButtonStyle.blue , label='Edit', custom_id='Note'),
-        Button(style=ButtonStyle.red, label='Close', custom_id='Close'),
+        Button(style=ButtonStyle.SUCCESS, label='Claim', custom_id='Claim'),
+        Button(style=ButtonStyle.PRIMARY , label='Edit', custom_id='Note'),
+        Button(style=ButtonStyle.DANGER, label='Close', custom_id='Close'),
         ]
     ]
     Today = date.today()
@@ -669,7 +658,7 @@ async def _ticket(ctx):
         Type.set_thumbnail(url=ctx.author.avatar.url)
         Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
-        msg = await ctx.author.send(components=Report_Buttons,embed=Type)
+        msg = await ctx.author.send(component=Report_Buttons,embed=Type)
         
 
         Interaction = await Client.wait_for("button_click", timeout=60) #check=lambda inter: inter.message.id == msg.id)
@@ -684,8 +673,8 @@ async def _ticket(ctx):
             Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
             Report_Embed.set_thumbnail(url=ctx.author.avatar.url)
             Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await Interaction.disable_components()
-            await msg.edit(embed=Report_Embed, components=Preview_Buttons)
+            await Interaction.disable_component()
+            await msg.edit(embed=Report_Embed, component=Preview_Buttons)
             Preview_Interaction = await Client.wait_for("button_click", timeout=60)
             if Preview_Interaction.custom_id == "Accept" and Preview_Interaction.message.id == msg.id:
                 Text = None
@@ -702,10 +691,10 @@ async def _ticket(ctx):
                 Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
                 Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 CurrentType = "None"
-                await Preview_Interaction.disable_components()
+                await Preview_Interaction.disable_component()
                 await ctx.author.send(embed=Final_Embed)
                 await msg.delete()
-                Main_Report = await Channel.send(embed=Final_Embed, components=Final_Buttons)
+                Main_Report = await Channel.send(embed=Final_Embed, component=Final_Buttons)
                 while True:
                     Main_Interaction = await Client.wait_for("button_click", timeout=31556926)
                     if Main_Interaction.custom_id == 'Close' and Main_Interaction.message.id == Main_Report.id:
@@ -719,7 +708,7 @@ async def _ticket(ctx):
                         Closed_Embed.set_thumbnail(url=ctx.author.avatar.url)
                         Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Report.edit(embed=Closed_Embed)
-                        await Main_Interaction.disable_components()
+                        await Main_Interaction.disable_component()
                         await Main_Report.delete()
                         await Channel2.send(embed=Closed_Embed)
                     elif Main_Interaction.custom_id == 'Claim' and Main_Interaction.message.id == Main_Report.id:
@@ -786,7 +775,7 @@ async def _ticket(ctx):
                 Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
                 Rejected.set_thumbnail(url=ctx.author.avatar.url)
                 Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                await Preview_Interaction.disable_components()
+                await Preview_Interaction.disable_component()
                 await msg.edit(embed=Rejected)
             
 
@@ -847,23 +836,23 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
     await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
     Preview_Buttons = [
         [
-        Button(style=ButtonStyle.red, label='Reject', custom_id='Reject'),
-        Button(style=ButtonStyle.green, label='Accept', custom_id='Accept'),
+        Button(style=ButtonStyle.DANGER, label='Reject', custom_id='Reject'),
+        Button(style=ButtonStyle.SUCCESS, label='Accept', custom_id='Accept'),
         ]
     ]
     Report_Buttons = [
         [
-        Button(style=ButtonStyle.green, label='In-Game', custom_id='In-Game'),
-        Button(style=ButtonStyle.green, label='Discord', custom_id='Discord'),
-        Button(style=ButtonStyle.red, label='Others', custom_id='Others'),
+        Button(style=ButtonStyle.SUCCESS, label='In-Game', custom_id='In-Game'),
+        Button(style=ButtonStyle.SUCCESS, label='Discord', custom_id='Discord'),
+        Button(style=ButtonStyle.DANGER, label='Others', custom_id='Others'),
         ]
     ]
     Final_Buttons = [
         [
-        Button(style=ButtonStyle.gray, label='Claim', custom_id='Claim'),
-        Button(style=ButtonStyle.blue , label='Edit', custom_id='Note'),
-        Button(style=ButtonStyle.green, label='Approve', custom_id='Approve'),
-        Button(style=ButtonStyle.red, label='Revoke', custom_id='Revoke'),
+        Button(style=ButtonStyle.SECONDARY, label='Claim', custom_id='Claim'),
+        Button(style=ButtonStyle.PRIMARY , label='Edit', custom_id='Note'),
+        Button(style=ButtonStyle.SUCCESS, label='Approve', custom_id='Approve'),
+        Button(style=ButtonStyle.DANGER, label='Revoke', custom_id='Revoke'),
         ]
     ]
     Today = date.today()
@@ -908,7 +897,7 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
         Type.set_thumbnail(url=ctx.author.avatar.url)
         Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
 
-        msg = await ctx.author.send(components=Report_Buttons,embed=Type)
+        msg = await ctx.author.send(component=Report_Buttons,embed=Type)
         
 
         Interaction = await Client.wait_for("button_click", timeout=60) #check=lambda inter: inter.message.id == msg.id)
@@ -923,8 +912,8 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
             Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
             Report_Embed.set_thumbnail(url=ctx.author.avatar.url)
             Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await Interaction.disable_components()
-            await msg.edit(embed=Report_Embed, components=Preview_Buttons)
+            await Interaction.disable_component()
+            await msg.edit(embed=Report_Embed, component=Preview_Buttons)
             Preview_Interaction = await Client.wait_for("button_click", timeout=60)
             if Preview_Interaction.custom_id == "Accept" and Preview_Interaction.message.id == msg.id:
                 Text = None
@@ -941,10 +930,10 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
                 Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
                 Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 CurrentType = "None"
-                await Preview_Interaction.disable_components()
+                await Preview_Interaction.disable_component()
                 await ctx.author.send(embed=Final_Embed)
                 await msg.delete()
-                Main_Report = await Channel.send(embed=Final_Embed, components=Final_Buttons)
+                Main_Report = await Channel.send(embed=Final_Embed, component=Final_Buttons)
                 while True:
                     Main_Interaction = await Client.wait_for("button_click", timeout=31556926)
                     if Main_Interaction.custom_id == 'Revoke' and Main_Interaction.message.id == Main_Report.id:
@@ -958,7 +947,7 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
                         Closed_Embed.set_thumbnail(url=ctx.author.avatar.url)
                         Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Report.edit(embed=Closed_Embed)
-                        await Main_Interaction.disable_components()
+                        await Main_Interaction.disable_component()
                         await Main_Report.delete()
                         await Channel2.send(embed=Closed_Embed)
                     elif Main_Interaction.custom_id == 'Approve' and Main_Interaction.message.id == Main_Report.id:
@@ -972,7 +961,7 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
                         Approved_Embed.set_thumbnail(url=ctx.author.avatar.url)
                         Approved_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                         await Main_Report.edit(embed=Approved_Embed)
-                        await Main_Interaction.disable_components()
+                        await Main_Interaction.disable_component()
                         await Main_Report.delete()
                         await Channel2.send(embed=Approved_Embed)
                     elif Main_Interaction.custom_id == 'Claim' and Main_Interaction.message.id == Main_Report.id:
@@ -1039,7 +1028,7 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
                 Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
                 Rejected.set_thumbnail(url=ctx.author.avatar.url)
                 Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                await Preview_Interaction.disable_components()
+                await Preview_Interaction.disable_component()
                 await msg.edit(embed=Rejected)
     
 
@@ -1054,7 +1043,7 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
 
     Revoke_Buttons = [
         [
-        Button(style=ButtonStyle.red, label='Revoke', custom_id='Revoke'),
+        Button(style=ButtonStyle.DANGER, label='Revoke', custom_id='Revoke'),
         ]
     ] 
 
@@ -1097,7 +1086,7 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
         Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
         Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
         await ctx.channel.send(embed=Main)
-        Msg = await Channel.send(components=Revoke_Buttons, embed=Infraction)
+        Msg = await Channel.send(component=Revoke_Buttons, embed=Infraction)
         database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Reason, Date, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Reason,f'{current_Date}, {current_time}', Type))
         database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
         Database.commit()
@@ -1112,7 +1101,7 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
                 Infraction1.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
                 Infraction1.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
                 await Msg.edit(embed=Infraction1)
-                await Interaction.disable_components()
+                await Interaction.disable_component()
 
         
 
