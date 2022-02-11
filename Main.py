@@ -1,4 +1,3 @@
-from __future__ import annotations
 from logging import fatal
 from re import A
 from sqlite3.dbapi2 import Cursor
@@ -12,8 +11,10 @@ from discord import member
 from discord.enums import try_enum
 from discord.errors import PrivilegedIntentsRequired
 from discord.ext import commands
-from discord.ext.commands.core import command
-from interactions import ButtonStyle, Button, SelectOption, client, component, Interaction 
+import interactions
+from interactions import *
+from interactions.api.models.member import Member
+from interactions.ext.wait_for import wait_for, setup
 import asyncio
 import certifi
 import aiohttp
@@ -22,23 +23,15 @@ from datetime import date, datetime
 import praw
 import re
 import string
-
-
 import inspect
 import json
 import traceback
 import sys
 from collections import defaultdict
-
 import discord.http, discord.state
 from discord.utils import MISSING
 
 
-
-
-Ticket_Channel = None
-Infraction_Channel = None
-Appeal_Channel = None
 
 Client = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client.remove_command("help")
@@ -81,12 +74,30 @@ class database:
     def disconnect():
         Database.close()
         return
+Blacklisted = []
+
+
+class Bot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix=commands.when_mentioned_or(','))
+
+    async def on_ready(self):
+        await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = " The Sith Order"))
+        guild = Client.get_guild(900845173989339186)
+        for black in Blacklisted:
+            User = await Client.fetch_user(black)
+            print(User)
+            await guild.ban(User)
+        for Member in guild.members:
+            database.execute("INSERT INTO Users (UserID, Time) VALUES (?, ?)", (Member.id, "N/A"))
+            Database.commit()
+        print(f'Logged in as {self.user} (ID: {self.user.id})')
+        print('------------------------------')
 
 @Client.event
 async def on_ready():
-    await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = " The Hidden Architect"))
-    print('Client finished setting up')
-    guild = Client.get_guild(930950743396061224)
+    await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = " The Sith Order"))
+    guild = Client.get_guild(900845173989339186)
     for black in Blacklisted:
         User = await Client.fetch_user(black)
         print(User)
@@ -94,8 +105,11 @@ async def on_ready():
     for Member in guild.members:
         database.execute("INSERT INTO Users (UserID, Time) VALUES (?, ?)", (Member.id, "N/A"))
         Database.commit()
+    print(f'Logged in')
+    print('------------------------------')
 
-Blacklisted = []
+
+bot = Bot()
 
 @Client.event
 async def on_member_join(Member):
@@ -113,7 +127,7 @@ async def on_command_error(ctx, error):
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
-    Channel = Client.get_channel(931211066837454948)
+    Channel = Client.get_channel(941411413468016760)
     Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
     Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar.url)
     Embed.set_thumbnail(url=ctx.author.avatar.url)
@@ -127,13 +141,17 @@ async def on_command_error(ctx, error):
 
 async def RoleChecker(ctx, User):
 
-    guild = Client.get_guild(930950743396061224)
+    guild = Client.get_guild(900845173989339186)
     role1 = [
-        discord.utils.get(guild.roles, id=930963340635803679), #CM
-        discord.utils.get(guild.roles, id=930963250353414155), #Admin
-        discord.utils.get(guild.roles, id=930979729807409182), #DM
-        discord.utils.get(guild.roles, id=930956369090211870), #Trusted
-        discord.utils.get(guild.roles, id=930962944378929173), #Staff
+        discord.utils.get(guild.roles, id=909918257312595968), 
+        discord.utils.get(guild.roles, id=901486515249635388),
+        discord.utils.get(guild.roles, id=905125340622508112),
+        discord.utils.get(guild.roles, id=906498226931245056),
+        discord.utils.get(guild.roles, id=901486515975229480),
+        discord.utils.get(guild.roles, id=901486518915448902),
+        discord.utils.get(guild.roles, id=901486518080786474),
+        discord.utils.get(guild.roles, id=901486519552995348),
+        discord.utils.get(guild.roles, id=901486517380345926),
     ]
     for Main in role1:
         for member in guild.members:
@@ -153,7 +171,7 @@ async def MissingPermission(ctx, Author):
 
 
 async def Logging(ctx, cmd, author: None, effected_member: None, Reason: None, Channelused: None):
-    Channel = Client.get_channel(931211162924769300)
+    Channel = Client.get_channel(941411399597445252)
     today = date.today()
     now = datetime.now()
 
@@ -171,622 +189,69 @@ async def Logging(ctx, cmd, author: None, effected_member: None, Reason: None, C
     Embed.set_footer(text=f'Command used by {author}.', icon_url=ctx.author.avatar.url)
     await Channel.send(embed=Embed)
 
+@Client.command(aliases = ['Ann', 'Announce'])
+async def _announce(ctx, Channel: discord.TextChannel, Title, *,Annoncement):
+    class Button(discord.ui.View):
+        @discord.ui.button(label='Confirm', style=discord.ButtonStyle.green)
+        async def Confirm(self, Confirm_Button: discord.ui.Button, interaction: discord.Interaction):
+            view = Button()
+            for item in view.children:
+                if isinstance(item, discord.Button):
+                    item.disabled = True
+        
+            Main = discord.Embed(color=0x2ecc71)
+            Main.add_field(name=f'{Title}',value=Annoncement, inline=False)
+            Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar.url)
+            Confirm_Button.disabled = True
+            await Channel.send(embed=Main)
+            await interaction.message.edit(view=self)
 
-#________________________#
+        @discord.ui.button(label='Revoke', style=discord.ButtonStyle.red)
+        async def Revoke(self, Revoke_Button: discord.ui.Button, interaction: discord.Interaction):
+            Revoke_Button.disabled = True
+            await interaction.response.edit_message(view=self)
 
-@Client.command(aliases = ['Ann', 'Announce'],  pass_context=True)
-async def _announce(ctx, Channel: discord.TextChannel, Mode , Title, *,Annoncement):
-    In_Group = False
-    Mode2 = None
-    buttons2 = [
-        [
-        Button(style=ButtonStyle.DANGER, label='Reject', custom_id='Reject'),
-        Button(style=ButtonStyle.SUCCESS, label='Accept', custom_id='Accept'),
-        ]
-    ]
-    await RoleChecker(ctx, ctx.author)
+        
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
     print(In_Group)
-    if Mode == "Everyone" or Mode=="everyone":
-        Mode2 = 'Everyone'
-    elif Mode == "Here" or Mode=="here":
-        Mode2 = 'Here'
-    else:
-        Mode2 = "None"
     if In_Group == True or ctx.author.guild_permissions.administrator:
-        Preview = discord.Embed(title="**Announcment Preview**", description=f"Full announcement made by {ctx.author}: ", color=0x1f8b4c)
-        Preview.add_field(name=f'__{Title}__', value=Annoncement, inline=False)
-        Preview.add_field(name='**__Announcement mentions: __**', value=Mode, inline=False)
-        Preview.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-        Preview.set_thumbnail(url=ctx.author.avatar.url)
-        msg = await ctx.send(components = buttons2, embed=Preview)
-        Interaction_Preview = await Client.wait_for("button_click", timeout=2629743,check=lambda inter: inter.message.id == msg.id)
-        if Interaction_Preview.custom_id=='Accept' and Mode2 == "Everyone":
-            await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}> with @everyone mention with announcement: __{Annoncement}__", ctx.channel)
-            Main = discord.Embed(color=0x2ecc71)
-            Main.add_field(name=f'{Title}',value=Annoncement, inline=False)
-            Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar.url)
-            Main.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
-
-
-            Accepted = discord.Embed(title=f"**{Title}**", description=f"Full announcement made by {ctx.author}: ", color=0x3498db)
-            Accepted.add_field(name=f'__Announcement Accepted__', value=f'Announcement View: {Annoncement}', inline=False)
-            Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await msg.edit(embed=Accepted)
-            await Interaction_Preview.disable_components()
-            await Channel.send("@everyone", embed=Main)
-        elif Interaction_Preview.custom_id=='Accept' and Mode2 == "Here":
-            await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}> with @here mention with announcement: __{Annoncement}__", ctx.channel)
-            Main = discord.Embed(color=0x2ecc71)
-            Main.add_field(name=f'{Title}',value=Annoncement, inline=False)
-            Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar.url)
-            Main.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
-
-            Accepted = discord.Embed(title=f"**{Title}**", description=f"Full announcement made by {ctx.author}: ", color=0x3498db)
-            Accepted.add_field(name=f'__Announcement Accepted__', value=f'Announcement View: {Annoncement}', inline=False)
-            Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
-
-            await msg.edit(embed=Accepted)
-            await Interaction_Preview.disable_components()
-            await Channel.send("@here", embed=Main)
-        elif Interaction_Preview.custom_id=='Accept' and Mode2 == "None":
-            await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}> with no mentions with announcement: __{Annoncement}__", ctx.channel)
-            Main = discord.Embed(color=0x2ecc71)
-            Main.add_field(name=f'{Title}',value=Annoncement, inline=False)
-            Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar.url)
-            Main.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
-
-
-            Accepted = discord.Embed(title=f"**{Title}**", description=f"Full announcement made by {ctx.author}: ", color=0x3498db)
-            Accepted.add_field(name=f'__Announcement Accepted__', value=f'Announcement View: {Annoncement}', inline=False)
-            Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            Accepted.set_footer(text=f'Announced by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await msg.edit(embed=Accepted)
-            await Interaction_Preview.disable_components()
-            await Channel.send(embed=Main)
-        elif Interaction_Preview.custom_id=='Reject':
-            Main = discord.Embed(title=f"**{Title}**", description=f"Full announcement rejected by {ctx.author}: ", color=0xe74c3c)
-            Main.add_field(name=f'__Announcement: __', value=Annoncement, inline=False)
-            Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            Main.set_thumbnail(url=ctx.author.avatar.url)
-            Main.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await msg.edit(embed=Main)
-            await Interaction_Preview.disable_components()
+        await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}>: __{Annoncement}__", ctx.channel)
+        Accepted = discord.Embed(title=f"**{Title}**", description=f"Full announcement made by {ctx.author}: ", color=0x3498db)
+        Accepted.add_field(name=f'__Announcement Accepted__', value=f'Announcement View: {Annoncement}', inline=False)
+        Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        view = Button()
+        view.message = await ctx.send('Preview!',embed=Accepted, view=view)
     else:
-        await MissingPermission(ctx, ctx.author)
-
-@Client.command(aliases = ['Time', 'Date'],  pass_context=True)
-async def _Time(ctx):
-    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
-    today = date.today()
-    now = datetime.now()
-
-    current_time = now.strftime("%H:%M:%S")
-    current_Date = today.strftime("%B %d, %Y")
-    Embed = discord.Embed(title="Time Command", description='Your time period should be shown below: ', color=0x546e7a)
-    Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-    Embed.set_thumbnail(url=ctx.author.avatar.url)
-    Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-    await ctx.channel.send(embed=Embed)
-    pass
-
-@Client.command(aliases = ['Help', 'Cmds', 'Commands'],  pass_context=True)
-async def _Help(ctx):
-    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
-    Pages = [
-        
-        'Home',
-        'Fun',
-        'Moderation',
-        'Information',
-        'Misc',
-    ]
-
-    Preview_Buttons = [
-        [
-        Button(style=ButtonStyle.SUCCESS, label='>', custom_id='Next'),
-        ]
-    ]
-    Main = discord.Embed(title="**Help System**", description=f"All further information is now handled in Direct Messages.", color=0x7289da)
-    Main.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-    await ctx.send(embed=Main)
-    Home = discord.Embed(title="**Help System**", description=f"Page information: __**{Pages[0]}**__", color=0x7289da)
-    Home.add_field(name='You will find here: ', value='__**Moderation and Adminstration, Information, Fun, and Misc.**__', inline=False)
-    Home.set_thumbnail(url=ctx.author.avatar.url)
-    Home.set_footer(text=f' Page 1/5', icon_url=ctx.author.avatar.url)
-    Home.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-    msg = await ctx.author.send(components=Preview_Buttons, embed=Home)
-    Interaction_Home= await Client.wait_for("button_click", timeout=2629743,check=lambda inter: inter.message.id == msg.id)
-    Current_Page = 1
-    while True:
-        if Interaction_Home.custom_id == 'Next' and Current_Page == 1:
-            Current_Page = Current_Page + 1
-            Moderation = discord.Embed(title="**Help System**", description=f"Page information: __**{Pages[2]}**__", color=0x7289da)
-            Moderation.set_thumbnail(url=ctx.author.avatar.url)
-            Moderation.add_field(name='Moderation: ', value='''
-
-`,Ban [User] [Reason] [Evidence]`
-
-`,Unban [User] [Reason] [Evidence]`
-
-`,SoftBan [User] [Reason]` 
-
-`,Nick [User] [Name]`
-
-`,Kick [User] [Reason] [Evidence]`
-
-`,Purge [Amount]`
-
-`,Slowmode [Channel] [Amount]`
-
-`,Warn [User] [Reason and Evidence]`
-
-`,Warnings [User]`
-
-`,ClearWarnings [User] [Reason]` 
-
-`,Case [Case ID]`
-
-`,Defean [User] [Reason]`
-
-`,Undefean [User] [Reason]` 
-            
-`,Mute [User] [Amount/Perm] [Reason]` (WIP)
-
-`,Unmute [User]` (WIP)
-
-`,Lock [Channel] [Time] [Reason]`
-
-`,Alert [Channel Location] [Message ID]`
-            
-            ''', inline=False)
-            Moderation.set_footer(text=f' Page 2/5', icon_url=ctx.author.avatar.url)
-            Moderation.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            await Interaction_Home.edit_origin(components=Preview_Buttons, embed=Moderation)
-            Interaction_Moderation= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
-        elif Interaction_Moderation.custom_id == 'Next' and Current_Page == 2:
-            Current_Page = Current_Page + 1
-            Information = discord.Embed(title="**Help System**", description=f"Page information: __**{Pages[3]}**__", color=0x7289da)
-            Information.set_thumbnail(url=ctx.author.avatar.url)
-            Information.add_field(name='Information: ', value='''
-
-`,Announce [Channel] [Mode = Everyone/Here/None] [Title] [Announcement]`
-
-`,Ticket`
-
-`,Time`
-
-`,ServerInfo`
-
-`,User [User]`
-
-`,Rules`
-
-`,Help`
-
-`,Version`
-
-`,Documents` (WIP)
-            
-            ''', inline=False)
-            Information.set_footer(text=f' Page 3/5', icon_url=ctx.author.avatar.url)
-            Information.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            await Interaction_Moderation.edit_origin(components=Preview_Buttons, embed=Information)
-            Interaction_Information= await Client.wait_for("button_click", timeout=2629743,check=lambda inter: inter.message.id == msg.id)
-        elif Interaction_Information.custom_id == 'Next' and Current_Page == 3:
-            Current_Page = Current_Page + 1
-            Fun = discord.Embed(title="**Help System**", description=f"Page information: __**{Pages[1]}**__", color=0x7289da)
-            Fun.set_thumbnail(url=ctx.author.avatar.url)
-            Fun.add_field(name='Fun: ', value='''
-
-`,Rps`
+        await MissingPermission(ctx, ctx.author) 
 
 
-            
-            ''', inline=False)
-            Fun.set_footer(text=f' Page 4/5', icon_url=ctx.author.avatar.url)
-            Fun.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            await Interaction_Information.edit_origin(components=Preview_Buttons, embed=Fun)
-            Interaction_Fun= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
-        elif Interaction_Fun.custom_id == 'Next' and Current_Page == 4:
-            Current_Page = Current_Page + 1
-            Misc = discord.Embed(title="**Help System**", description=f"Page information: __**{Pages[4]}**__", color=0x7289da)
-            Misc.set_thumbnail(url=ctx.author.avatar.url)
-            Misc.add_field(name='Misc: ', value='''
-
-`,Ping`
-
-`,RandomNumber [First number] [Second number]`
-
-            
-            ''', inline=False)
-            Misc.set_footer(text=f' Page 5/5', icon_url=ctx.author.avatar.url)
-            Misc.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            await Interaction_Fun.edit_origin(components=Preview_Buttons, embed=Misc)
-            Interaction_Misc= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
-        elif Interaction_Misc.custom_id == 'Next' and Current_Page == 5:
-            Current_Page = 1
-            await Interaction_Misc.edit_origin(components=Preview_Buttons, embed=Home)
-            Interaction_Home= await Client.wait_for("button_click",check=lambda inter: inter.message.id == msg.id)
-
-
-
-
-
-
-
-@Client.command(aliases = ['Purge', 'ClerChat', 'PurgeChat'],  pass_context=True)
-async def _Purge(ctx, Amount: int):
-    await RoleChecker(ctx, ctx.author)
-    result_from_errorrank = await RoleChecker(ctx, ctx.author)
-    In_Group = result_from_errorrank
-    if In_Group == True or ctx.author.guild_permissions.administrator:
-        await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"{Amount} Message(s)", ctx.channel)
-        if Amount <=1:
-            today = date.today()
-            now = datetime.now()
-            current_time = now.strftime("%H:%M:%S")
-            current_Date = today.strftime("%B %d, %Y")
-            Channel = Client.get_channel(931211066837454948)
-            Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
-            Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-            Embed.set_thumbnail(url=ctx.author.avatar.url)
-            Embed.add_field(name="Error Message:", value=f'__**Please enter a valid number.**__', inline=False)
-            Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await Channel.send(embed=Embed)
-            await ctx.channel.send(embed=Embed)
-        else:
-            await ctx.channel.purge(limit = Amount)
-            Embed = discord.Embed(title="Purge Command", description=f'Purged {Amount} message(s).', color=0xe74c3c)
-            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            time.sleep(.5)
-            await ctx.channel.send(embed=Embed,delete_after=10)
-    else:
-        await MissingPermission(ctx, ctx.author)
-
-
-@Client.command(aliases = ['Slowmode', 'Cooldown', 'Slow', 'Slowmodechat'],  pass_context=True)
-async def _Slowmode(ctx, Amount: int):
-    await RoleChecker(ctx, ctx.author)
-    result_from_errorrank = await RoleChecker(ctx, ctx.author)
-    In_Group = result_from_errorrank
-    if In_Group == True or ctx.author.guild_permissions.administrator:
-        await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"{Amount} Second(s)", ctx.channel)
-        if Amount <0:
-            today = date.today()
-            now = datetime.now()
-            current_time = now.strftime("%H:%M:%S")
-            current_Date = today.strftime("%B %d, %Y")
-            Channel = Client.get_channel(931211066837454948)
-            Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
-            Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-            Embed.add_field(name="Error Message:", value=f'__**Please enter a valid number.**__', inline=False)
-            Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await Channel.send(embed=Embed)
-            await ctx.channel.send(embed=Embed)
-        elif Amount == 0:
-            Embed = discord.Embed(title="Slowmode Command", description=f'Slow mode is disabled, slow mode is now {Amount} second(s) per message.', color=0x00ff00)
-            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await ctx.channel.edit(slowmode_delay=0)
-            await ctx.channel.send(embed=Embed)
-        else:
-            Embed = discord.Embed(title="Slowmode Command", description=f'Slow mode is enabled, slow mode is now {Amount} second(s) per message', color=0x95a5a6)
-            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await ctx.channel.edit(slowmode_delay=Amount)
-            await ctx.channel.send(embed=Embed)
-    else:
-        await MissingPermission(ctx, ctx.author)
-
-@Client.command(aliases = ['Kick'],  pass_context=True)
-async def _Kick(ctx, Member: discord.Member,*, Reason):
+@Client.command(aliases = ['Nick', 'Nickname', 'Name'], pass_context=True)
+async def _Nick(ctx, Member: Union[discord.Member,discord.Object],*,Nick):
     today = date.today()
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
+    User = await Client.fetch_user(Member.id) 
     Time = f'{current_Date}, {current_time}'
 
-    
-    Selected_Code = "SELECT Thing FROM Strike_Code"
-    Cursor.execute(Selected_Code)
-    records = Cursor.fetchall()
-    Number = 0
-    for record in records:
-        Number = Number + 1
-    Number = Number + 1
-    Type = 'Kick'
-    Code1 = random.randint(0,999999999999999999)
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
+
     if In_Group == True or ctx.author.guild_permissions.administrator:
-        await RoleChecker(ctx, Member)
-        Result = await RoleChecker(ctx, Member)
-        In_Group2 = Result
-        if In_Group2==True or Member.guild_permissions.administrator:
-            await MissingPermission(ctx, ctx.author)
-        else:
-            Embed = discord.Embed(title="Member Was Kicked Successfuly")
-            Embed.add_field(name=f'__**{Member}**__ was kicked successfuly because of: ', value=f'{Reason}', inline=False)
-            Embed.set_author(name='Kicked ', icon_url=Member.avatar.url)
-            Embed.set_thumbnail(url=Member.avatar.url)
-            Embed.set_footer(text=f'Kicked by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await ctx.channel.send(embed=Embed)    
-            await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
-            database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
-            database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
-            Database.commit()
-            await Member.kick(reason=Reason)
+        await Logging(ctx, ctx.message.content,ctx.author, User, f'Nickname is now changed to: {Nick}', ctx.channel)
+        await Member.edit(nick=Nick)
+        Embed = discord.Embed(title="Nickname System")
+        Embed.add_field(name=f'__**{User}**__ username was successfuly changed to ', value=f'{Nick}', inline=False)
+        Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
+        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+        await ctx.send(embed=Embed)
     else:
         await MissingPermission(ctx, ctx.author)
 
-@Client.command(aliases = ['Inf', 'Infractions', 'Warnings', 'Warnlist', 'i'],  pass_context=True)
-async def _Infraction(ctx, Member: Union[discord.Member,discord.Object]):
-    await RoleChecker(ctx, ctx.author)
-    result_from_errorrank = await RoleChecker(ctx, ctx.author)
-    In_Group = result_from_errorrank
-    if In_Group == True or ctx.author.guild_permissions.administrator:
-        Warnings_User = None
-        Selected_User = "SELECT UserID FROM Warning_Logs WHERE UserID = %d" % Member.id
-        Cursor.execute(Selected_User)
-        records5 = Cursor.fetchall()
-        User_Edited = f"[{records5}]"
-        await Logging(ctx, ctx.message.content,ctx.author, Member, None, ctx.channel)
-        if User_Edited != "[[]]":
-            Warnings_User = records5[0][0]
-        if Member.id == Warnings_User:
-            Warnings_Date = []
-            Warnings_Reason = []
-            Warnings_Admin = []
-            Warnings_Type = []
-            Selected_Code = "SELECT Code FROM Warning_Logs WHERE UserID = %d" % Member.id
-            Selected_Reason = "SELECT Reason FROM Warning_Logs WHERE UserID = %d" % Member.id
-            Selected_Date = "SELECT Date FROM Warning_Logs WHERE UserID = %d" % Member.id
-            Selected_Admin = "SELECT Administrator FROM Warning_Logs WHERE UserID = %d" % Member.id
-            Selected_Type = "SELECT Type FROM Warning_Logs WHERE UserID = %d" % Member.id
-            Cursor.execute(Selected_Code)
-            records = Cursor.fetchall()
-            Cursor.execute(Selected_Reason)
-            records2 = Cursor.fetchall()
-            Cursor.execute(Selected_Date)
-            records3 = Cursor.fetchall()
-            Cursor.execute(Selected_Admin)
-            records4 = Cursor.fetchall()
-            Cursor.execute(Selected_Type)
-            records5 = Cursor.fetchall()
-
-            Request = discord.Embed(title="**Infraction Logs**", description=f"<@{Member.id}>'s Infractions: ", color=0xe67e22)
-
-            Code_Number = 0
-            for record in records:
-                for record2 in records2:
-                    Warnings_Reason.insert(1, record2)
-                    for record3 in records3:
-                        Warnings_Date.insert(1, record3)
-                        for record4 in records4:
-                            Warnings_Admin.insert(1, record4)
-                            for record5 in records5:
-                                Warnings_Type.insert(1, record5)
-
-            
-            for record in records:
-                Code_Number = Code_Number + 1
-                Request.add_field(name=f'Infraction Number {Code_Number}: ', value=f'''
-**Code: ** `{record[0]}`
-**Type: ** {Warnings_Type[0][0]}
-**Reason: ** {Warnings_Reason[0][0]}
-**Date: ** {Warnings_Date[0][0]}
-**Infracted by: ** <@{Warnings_Admin[0][0]}>
-                ''', inline=False)
-            Request.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            Request.set_author(name=f'{Member} ({Member.id})', icon_url=ctx.author.avatar.url)
-            await ctx.send(embed=Request)
-        else:
-            Nothign = discord.Embed(title="**Infraction Logs**", description=f"<@{Member.id}> was never warned, muted, kicked or banned by the bot.", color=0x9b59b6)
-            Nothign.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await ctx.send(embed=Nothign)
-    else:
-        await MissingPermission(ctx, ctx.author)      
-
-@Client.command(aliases = ['Ticket', 'Report'],  pass_context=True)
-async def _ticket(ctx):
-    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
-    Preview_Buttons = [
-        [
-        Button(style=ButtonStyle.DANGER, label='Reject', custom_id='Reject'),
-        Button(style=ButtonStyle.SUCCESS, label='Accept', custom_id='Accept'),
-        ]
-    ]
-    Report_Buttons = [
-        [
-        Button(style=ButtonStyle.SUCCESS, label='Feedback', custom_id='Feedback'),
-        Button(style=ButtonStyle.SUCCESS, label='Bug Report', custom_id='Bug Report'),
-        Button(style=ButtonStyle.DANGER, label='Developer Report', custom_id='Developer Report'),
-        ]
-    ]
-    Final_Buttons = [
-        [
-        Button(style=ButtonStyle.SUCCESS, label='Claim', custom_id='Claim'),
-        Button(style=ButtonStyle.PRIMARY , label='Edit', custom_id='Note'),
-        Button(style=ButtonStyle.DANGER, label='Close', custom_id='Close'),
-        ]
-    ]
-    Today = date.today()
-    Now = datetime.now()
-    current_time = Now.strftime("%H:%M:%S")
-    current_Date = Today.strftime("%B %d, %Y")
-
-    Selected_Code = "SELECT Ticket FROM Ticket_Logs"
-    Cursor.execute(Selected_Code)
-    records = Cursor.fetchall()
-    Number = 0
-    for record in records:
-        Number = Number + 1
-    Number = Number + 1
-    Code = random.randint(0,999999999999999999)
-
-    Message = discord.Embed(title="Ticket System", description='Please check your DMs for further information.', color=0x546e7a)
-    Message.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-    await ctx.send(embed=Message)
-
-    Main = discord.Embed(title="**Ticket System**", description=f"Please reply with your ticket. Please provide **images/videos** to support your ticket.", color=0xe67e22)
-    Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Main.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar.url)
-    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-    await ctx.author.send(embed=Main)
-    Report = await Client.wait_for('message', check=lambda message: message.author == ctx.author)
-
-    if isinstance(Report.channel, discord.channel.TextChannel):
-        Cancelled = discord.Embed(title="**Ticket System**", description=f"Ticket cancelled, please recreate your ticket and reply in Direct Messages", color=0xe74c3c)
-        Cancelled.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Cancelled.set_footer(text=f'Ticket by {ctx.author}.', icon_url=ctx.author.avatar.url)
-        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-        Cancelled.set_thumbnail(url=ctx.author.avatar.url)
-        await ctx.author.send(embed=Cancelled)
-    elif isinstance(Report.channel, discord.channel.DMChannel):
-        Type = discord.Embed(title="Ticket Type", description='Please select the ticket type you want to make.', color=0x546e7a)
-        Type.add_field(name='Please provide `Full Report`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
-        Type.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-        Type.set_thumbnail(url=ctx.author.avatar.url)
-        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-
-        msg = await ctx.author.send(components=Report_Buttons,embed=Type)
-        
-
-        Interaction = await Client.wait_for("button_click", timeout=60) #check=lambda inter: inter.message.id == msg.id)
-
-        if Interaction and Interaction.message.id == msg.id:
-            TypeInteraction = Interaction.custom_id
-            Report_Embed = discord.Embed(title="Ticket System Preview", description=f'Ticket Type: {TypeInteraction}', color=0xe91e63)
-            Report_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
-            Report_Embed.add_field(name='Report: ', value=Report.content, inline=False)
-            Report_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-            Report_Embed.add_field(name='Note: ', value='If you do not get a response from a Moderator/Administrator within 48 hours please re-post a ticket.', inline=False)
-            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-            Report_Embed.set_thumbnail(url=ctx.author.avatar.url)
-            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await Interaction.disable_components()
-            await msg.edit(embed=Report_Embed, components=Preview_Buttons)
-            Preview_Interaction = await Client.wait_for("button_click", timeout=60)
-            if Preview_Interaction.custom_id == "Accept" and Preview_Interaction.message.id == msg.id:
-                Text = None
-                database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
-                Database.commit()
-                Channel = Client.get_channel(931211113704591460)
-                Channel2 = Client.get_channel(931211089314742303)
-                Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeInteraction}', color=0x546e7a)
-                Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
-                Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
-                Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
-                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
-                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                CurrentType = "None"
-                await Preview_Interaction.disable_components()
-                await ctx.author.send(embed=Final_Embed)
-                await msg.delete()
-                Main_Report = await Channel.send(embed=Final_Embed, components=Final_Buttons)
-                while True:
-                    Main_Interaction = await Client.wait_for("button_click", timeout=31556926)
-                    if Main_Interaction.custom_id == 'Close' and Main_Interaction.message.id == Main_Report.id:
-                        CurrentType = "Close"
-                        Closed_Embed = discord.Embed(title=f"Ticket Closed by {Main_Interaction.user}", description=f'Ticket Type: {TypeInteraction}', color=0x1f8b4c)
-                        Closed_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
-                        Closed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
-                        Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Closed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                        Closed_Embed.set_thumbnail(url=ctx.author.avatar.url)
-                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                        await Main_Report.edit(embed=Closed_Embed)
-                        await Main_Interaction.disable_components()
-                        await Main_Report.delete()
-                        await Channel2.send(embed=Closed_Embed)
-                    elif Main_Interaction.custom_id == 'Claim' and Main_Interaction.message.id == Main_Report.id:
-                        CurrentType = "Claim"
-                        Claimed_Embed = discord.Embed(title=f"Ticket Claimed by {Main_Interaction.user}", description=f'Ticket Type: {TypeInteraction}', color=0xe67e22)
-                        Claimed_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
-                        Claimed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
-                        Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar.url)
-                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                        await Main_Interaction.edit_origin(embed=Claimed_Embed)    
-                    elif Main_Interaction.custom_id == 'Note' and Main_Interaction.message.id == Main_Report.id:
-                        Note = discord.Embed(title="Ticket System", description=f'Please reply with your note for this ticket.', color=0x546e7a)
-                        Note.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Note.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                        Note.set_thumbnail(url=ctx.author.avatar.url)
-                        Note.set_footer(text=f'Requested by {Main_Interaction.user}.', icon_url=ctx.author.avatar.url)
-                        await Main_Interaction.user.send(embed=Note)
-                        await Main_Interaction.edit_origin(embed=Final_Embed)
-                        NoteMsg = await Client.wait_for('message', check=lambda message: message.author.id == Main_Interaction.user.id)
-                        if isinstance(NoteMsg.channel, discord.channel.TextChannel):
-                            Cancelled2 = discord.Embed(title="**Ticket System**", description=f"Note cancelled, plase click back on note to create a new one.", color=0xe74c3c)
-                            Cancelled2.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                            Cancelled2.set_footer(text=f'Ticket by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                            Cancelled2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-                            Cancelled2.set_thumbnail(url=ctx.author.avatar.url)
-                            await Main_Interaction.user.send(embed=Cancelled2)
-                        elif isinstance(NoteMsg.channel, discord.channel.DMChannel):
-                            Text = NoteMsg.content
-                            if CurrentType == "Close" and Main_Interaction.message.id == Main_Report.id:
-                                Closed_Embed.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                await Main_Interaction.user.send(embed=Closed_Embed)
-                                await Main_Report.edit(embed=Closed_Embed)
-                            elif CurrentType == "Claim" and Main_Interaction.message.id == Main_Report.id:
-                                Claimed_Embed1 = discord.Embed(title=f"Ticket Claimed by {Main_Interaction.user}", description=f'Ticket Type: {TypeInteraction}', color=0xe67e22)
-                                Claimed_Embed1.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
-                                Claimed_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
-                                Claimed_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                                Claimed_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                Claimed_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                                Claimed_Embed1.set_thumbnail(url=ctx.author.avatar.url)
-                                Claimed_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)                                
-                                await Main_Interaction.user.send(embed=Claimed_Embed1)
-                                await Main_Report.edit(embed=Claimed_Embed1)
-                            elif CurrentType == "None" and Main_Interaction.message.id == Main_Report.id:
-                                Final_Embed1 = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeInteraction}', color=0x546e7a)
-                                Final_Embed1.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
-                                Final_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
-                                Final_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                                Final_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                Final_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                                Final_Embed1.set_thumbnail(url=ctx.author.avatar.url)
-                                Final_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                                await Main_Interaction.user.send(embed=Final_Embed1)
-                                await Main_Report.edit(embed=Final_Embed1)
-            elif Preview_Interaction.custom_id == "Reject" and Preview_Interaction.message.id == msg.id:
-                Rejected = discord.Embed(title=f"Ticket Closed by {Preview_Interaction.user.id}", description=f'Ticket Type: {Interaction.custom_id}', color=0xe74c3c)
-                Rejected.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
-                Rejected.add_field(name='Report: ', value=Report.content, inline=False)
-                Rejected.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                Rejected.add_field(name='Note: ', value='Your ticket was closed.', inline=False)
-                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                Rejected.set_thumbnail(url=ctx.author.avatar.url)
-                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                await Preview_Interaction.disable_components()
-                await msg.edit(embed=Rejected)
-            
-
-
-@Client.command(aliases = ['Ping', 'MS'],  pass_context=True)
-async def _Ping(ctx):
-    await ctx.channel.send(f"Your ping is __{round(Client.latency*500)}__ millisecond.")
-    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
-
-@Client.command(aliases = ['Ban'],  pass_context=True)
-async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
+@Client.command(aliases = ['Softban', 'Sb','Sban'],  pass_context=True)
+async def _SoftBan(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
     today = date.today()
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
@@ -802,7 +267,7 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
     for record in records:
         Number = Number + 1
     Number = Number + 1
-    Type = 'Ban'
+    Type = 'Soft Ban'
     Code1 = random.randint(0,999999999999999999)
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
@@ -816,328 +281,172 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
         if In_Group2==True:
             await MissingPermission(ctx, ctx.author)
         else:
-            print(User)
-            Embed = discord.Embed(title="Ban System")
-            Embed.add_field(name=f'__**{User}**__ was banned successfuly because of: ', value=f'{Reason}', inline=False)
+            Embed = discord.Embed(title="Soft Ban System")
+            Embed.add_field(name=f'__**{User}**__ was soft banned successfuly for: ', value=f'{Reason}', inline=False)
             Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
             Embed.set_thumbnail(url=User.avatar.url)
-            Embed.set_footer(text=f'Banned by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            Embed.set_footer(text=f'Soft Banned by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await ctx.channel.send(embed=Embed)
 
             await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
             database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
             database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
             Database.commit()
-            await ctx.guild.ban(User, reason=Reason)
+            await ctx.guild.ban(User,reason=Reason, delete_message_days=7)
+            await ctx.guild.unban(User)
     else:
         await MissingPermission(ctx, ctx.author)
 
-
+@Client.command(aliases = ['ServerInfo', 'Sinfo'],  pass_context=True)
+async def _ServerInfo(ctx):
     await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
-    Preview_Buttons = [
-        [
-        Button(style=ButtonStyle.DANGER, label='Reject', custom_id='Reject'),
-        Button(style=ButtonStyle.SUCCESS, label='Accept', custom_id='Accept'),
-        ]
-    ]
-    Report_Buttons = [
-        [
-        Button(style=ButtonStyle.SUCCESS, label='In-Game', custom_id='In-Game'),
-        Button(style=ButtonStyle.SUCCESS, label='Discord', custom_id='Discord'),
-        Button(style=ButtonStyle.DANGER, label='Others', custom_id='Others'),
-        ]
-    ]
-    Final_Buttons = [
-        [
-        Button(style=ButtonStyle.SECONDARY, label='Claim', custom_id='Claim'),
-        Button(style=ButtonStyle.PRIMARY , label='Edit', custom_id='Note'),
-        Button(style=ButtonStyle.SUCCESS, label='Approve', custom_id='Approve'),
-        Button(style=ButtonStyle.DANGER, label='Revoke', custom_id='Revoke'),
-        ]
-    ]
-    Today = date.today()
-    Now = datetime.now()
-    current_time = Now.strftime("%H:%M:%S")
-    current_Date = Today.strftime("%B %d, %Y")
+    Number2 = 1
+    Number3 = 1
+    for Channels in ctx.guild.channels:
+        Number2 = Number2 + 1
+    for Roles in ctx.guild.roles:
+        Number3 = Number3 + 1
+    Embed = discord.Embed(title="Server Information")
+    Embed.add_field(name=f'Server is owned by: ', value=f'{ctx.guild.owner}/{ctx.guild.owner_id}/<@{ctx.guild.owner_id}>', inline=False)
+    Embed.add_field(name=f'The server region is: ', value=f'{ctx.guild.region}', inline=False)
+    Embed.add_field(name=f'The server description: ', value=f'{ctx.guild.description}', inline=False)
+    Embed.add_field(name=f'The server Creation Date: ', value=f'{ctx.guild.created_at}', inline=False)
+    Embed.add_field(name=f'The server default notifications: ', value=f'{ctx.guild.default_notifications}', inline=False)
+    Embed.add_field(name=f'Amount of members in the guild: ', value=f'{ctx.guild.member_count}', inline=False)
+    Embed.add_field(name=f'Amount of channels in the guild: ', value=f'{Number2}', inline=False)
+    Embed.add_field(name=f'Amount of roles in the guild: ', value=f'{Number3}', inline=False)
+    Embed.add_field(name=f'The server max presences: ', value=f'{ctx.guild.max_presences}', inline=False)
+    Embed.add_field(name=f'The server verification level: ', value=f'{ctx.guild.verification_level}', inline=False)
+    Embed.add_field(name=f'The server AFK channel is: ', value=f'{ctx.guild.afk_channel}', inline=False)
+    Embed.set_author(name=f'{ctx.guild.name} ({ctx.guild.id})', icon_url=ctx.guild.icon.url)
+    Embed.set_thumbnail(url=ctx.guild.icon.url)
+    Embed.set_footer(text=f'Requested {ctx.author}.', icon_url=ctx.author.avatar.url)
+    await ctx.send(embed=Embed)
 
-    Selected_Code = "SELECT Ticket FROM Appeal_Logs"
-    Cursor.execute(Selected_Code)
-    records = Cursor.fetchall()
-    Number = 0
-    for record in records:
-        Number = Number + 1
-    Number = Number + 1
-    Code = random.randint(0,999999999999999999)
-
-    Message = discord.Embed(title="Appeal System", description='Please check your DMs for further information.', color=0x546e7a)
-    Message.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Message.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-    Message.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-    await ctx.send(embed=Message)
-
-    Main = discord.Embed(title="**Appeal System**", description=f"Please reply with your appeal. Please provide **images/videos** to support your appeal.", color=0xe67e22)
-    Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Main.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar.url)
-    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-    await ctx.author.send(embed=Main)
-    Report = await Client.wait_for('message', check=lambda message: message.author == ctx.author)
-
-    if isinstance(Report.channel, discord.channel.TextChannel):
-        Cancelled = discord.Embed(title="**Appeal System**", description=f"Appeal cancelled, please recreate your appeal and reply in Direct Messages", color=0xe74c3c)
-        Cancelled.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Cancelled.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar.url)
-        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-        Cancelled.set_thumbnail(url=ctx.author.avatar.url)
-        await ctx.author.send(embed=Cancelled)
-    elif isinstance(Report.channel, discord.channel.DMChannel):
-        Type = discord.Embed(title="Appeal Type", description='Please select the appeal type you want to make.', color=0x546e7a)
-        Type.add_field(name='Please provide `Full Report`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
-        Type.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-        Type.set_thumbnail(url=ctx.author.avatar.url)
-        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-
-        msg = await ctx.author.send(components=Report_Buttons,embed=Type)
-        
-
-        Interaction = await Client.wait_for("button_click", timeout=60) #check=lambda inter: inter.message.id == msg.id)
-
-        if Interaction and Interaction.message.id == msg.id:
-            TypeInteraction = Interaction.custom_id
-            Report_Embed = discord.Embed(title="Appeal System Preview", description=f'Appeal Type: {TypeInteraction}', color=0xe91e63)
-            Report_Embed.add_field(name='Appeal Code: ', value=f'#{Number}/{Code}', inline=False)
-            Report_Embed.add_field(name='Report: ', value=Report.content, inline=False)
-            Report_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-            Report_Embed.add_field(name='Note: ', value='If you do not get a response from a Moderator/Administrator within 48 hours please re-post a appeal.', inline=False)
-            Report_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-            Report_Embed.set_thumbnail(url=ctx.author.avatar.url)
-            Report_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await Interaction.disable_components()
-            await msg.edit(embed=Report_Embed, components=Preview_Buttons)
-            Preview_Interaction = await Client.wait_for("button_click", timeout=60)
-            if Preview_Interaction.custom_id == "Accept" and Preview_Interaction.message.id == msg.id:
-                Text = None
-                database.execute("INSERT INTO Appeal_Logs (Ticket) VALUES (?)", (Text,))
-                Database.commit()
-                Channel = Client.get_channel(704274570143858758)
-                Channel2 = Client.get_channel(925539281517297674)
-                Final_Embed = discord.Embed(title="Appeal System", description=f'Appeal Type: {TypeInteraction}', color=0x546e7a)
-                Final_Embed.add_field(name='Appeal Code: ', value=f'#{Number}/{Code}', inline=False)
-                Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
-                Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
-                Final_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
-                Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                CurrentType = "None"
-                await Preview_Interaction.disable_components()
-                await ctx.author.send(embed=Final_Embed)
-                await msg.delete()
-                Main_Report = await Channel.send(embed=Final_Embed, components=Final_Buttons)
-                while True:
-                    Main_Interaction = await Client.wait_for("button_click", timeout=31556926)
-                    if Main_Interaction.custom_id == 'Revoke' and Main_Interaction.message.id == Main_Report.id:
-                        CurrentType = "Close"
-                        Closed_Embed = discord.Embed(title=f"Appeal Revoked by {Main_Interaction.user}", description=f'Appeal Type: {TypeInteraction}', color=0xe74c3c)
-                        Closed_Embed.add_field(name='Appeal Code: ', value=f'#{Number}/{Code}', inline=False)
-                        Closed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
-                        Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Closed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Closed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                        Closed_Embed.set_thumbnail(url=ctx.author.avatar.url)
-                        Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                        await Main_Report.edit(embed=Closed_Embed)
-                        await Main_Interaction.disable_components()
-                        await Main_Report.delete()
-                        await Channel2.send(embed=Closed_Embed)
-                    elif Main_Interaction.custom_id == 'Approve' and Main_Interaction.message.id == Main_Report.id:
-                        CurrentType = "Claim"
-                        Approved_Embed = discord.Embed(title=f"Appeal Approved by {Main_Interaction.user}", description=f'Appeal Type: {TypeInteraction}', color=0x00ff00)
-                        Approved_Embed.add_field(name='Appeal Code: ', value=f'#{Number}/{Code}', inline=False)
-                        Approved_Embed.add_field(name='Report: ', value=Report.content, inline=False)
-                        Approved_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Approved_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Approved_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                        Approved_Embed.set_thumbnail(url=ctx.author.avatar.url)
-                        Approved_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                        await Main_Report.edit(embed=Approved_Embed)
-                        await Main_Interaction.disable_components()
-                        await Main_Report.delete()
-                        await Channel2.send(embed=Approved_Embed)
-                    elif Main_Interaction.custom_id == 'Claim' and Main_Interaction.message.id == Main_Report.id:
-                        CurrentType = "Claim"
-                        Claimed_Embed = discord.Embed(title=f"Appeal Claimed by {Main_Interaction.user}", description=f'Appeal Type: {TypeInteraction}', color=0xe67e22)
-                        Claimed_Embed.add_field(name='Appeal Code: ', value=f'#{Number}/{Code}', inline=False)
-                        Claimed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
-                        Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                        Claimed_Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                        Claimed_Embed.set_thumbnail(url=ctx.author.avatar.url)
-                        Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                        await Main_Interaction.edit_origin(embed=Claimed_Embed)    
-                    elif Main_Interaction.custom_id == 'Note' and Main_Interaction.message.id == Main_Report.id:
-                        Note = discord.Embed(title="Appeal System", description=f'Please reply with your note for this appeal.', color=0x546e7a)
-                        Note.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                        Note.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                        Note.set_thumbnail(url=ctx.author.avatar.url)
-                        Note.set_footer(text=f'Requested by {Main_Interaction.user}.', icon_url=ctx.author.avatar.url)
-                        await Main_Interaction.user.send(embed=Note)
-                        await Main_Interaction.edit_origin(embed=Final_Embed)
-                        NoteMsg = await Client.wait_for('message', check=lambda message: message.author.id == Main_Interaction.user.id)
-                        if isinstance(NoteMsg.channel, discord.channel.TextChannel):
-                            Cancelled2 = discord.Embed(title="**Appeal System**", description=f"Note cancelled, plase click back on note to create a new one.", color=0xe74c3c)
-                            Cancelled2.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                            Cancelled2.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                            Cancelled2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-                            Cancelled2.set_thumbnail(url=ctx.author.avatar.url)
-                            await Main_Interaction.user.send(embed=Cancelled2)
-                        elif isinstance(NoteMsg.channel, discord.channel.DMChannel):
-                            Text = NoteMsg.content
-                            if CurrentType == "Close" and Main_Interaction.message.id == Main_Report.id:
-                                Closed_Embed.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                await Main_Interaction.user.send(embed=Closed_Embed)
-                                await Main_Report.edit(embed=Closed_Embed)
-                            elif CurrentType == "Claim" and Main_Interaction.message.id == Main_Report.id:
-                                Claimed_Embed1 = discord.Embed(title=f"Appeal Claimed by {Main_Interaction.user}", description=f'Appeal Type: {TypeInteraction}', color=0xe67e22)
-                                Claimed_Embed1.add_field(name='Appeal Code: ', value=f'#{Number}/{Code}', inline=False)
-                                Claimed_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
-                                Claimed_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                                Claimed_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                Claimed_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                                Claimed_Embed1.set_thumbnail(url=ctx.author.avatar.url)
-                                Claimed_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)                                
-                                await Main_Interaction.user.send(embed=Claimed_Embed1)
-                                await Main_Report.edit(embed=Claimed_Embed1)
-                            elif CurrentType == "None" and Main_Interaction.message.id == Main_Report.id:
-                                Final_Embed1 = discord.Embed(title="Appeal System", description=f'Appeal Type: {TypeInteraction}', color=0x546e7a)
-                                Final_Embed1.add_field(name='Appeal Code: ', value=f'#{Number}/{Code}', inline=False)
-                                Final_Embed1.add_field(name='Report: ', value=Report.content, inline=False)
-                                Final_Embed1.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                                Final_Embed1.add_field(name='Note: ', value=f'{NoteMsg.content}', inline=False)
-                                Final_Embed1.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                                Final_Embed1.set_thumbnail(url=ctx.author.avatar.url)
-                                Final_Embed1.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                                await Main_Interaction.user.send(embed=Final_Embed1)
-                                await Main_Report.edit(embed=Final_Embed1)
-            elif Preview_Interaction.custom_id == "Reject" and Preview_Interaction.message.id == msg.id:
-                Rejected = discord.Embed(title=f"Appeal Closed by {Preview_Interaction.user.id}", description=f'Appeal Type: {Interaction.custom_id}', color=0xe74c3c)
-                Rejected.add_field(name='Appeal Code: ', value=f'#{Number}/{Code}', inline=False)
-                Rejected.add_field(name='Report: ', value=Report.content, inline=False)
-                Rejected.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                Rejected.add_field(name='Note: ', value='Your appeal was closed.', inline=False)
-                Rejected.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-                Rejected.set_thumbnail(url=ctx.author.avatar.url)
-                Rejected.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                await Preview_Interaction.disable_components()
-                await msg.edit(embed=Rejected)
-    
-
-@Client.command(aliases = ['Version'],  pass_context=True)
-async def _Version(ctx):
-    await ctx.channel.send(f"The bot is version 0.1.9.4 Alpha.")
-    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
-
-
-@Client.command(aliases = ['Warn', 'Strike', 'Infract'],  pass_context=True)
-async def _Warn(ctx, Member: discord.Member, *, Reason):
-
-    Revoke_Buttons = [
-        [
-        Button(style=ButtonStyle.DANGER, label='Revoke', custom_id='Revoke'),
-        ]
-    ] 
-
+@Client.command(aliases = ['Deaf', 'VoiceDeafen', 'Deafen'], pass_context=True)
+async def _Deafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason):
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    Time = f'{current_Date}, {current_time}'
+    Code1 = random.randint(0,999999999999999999)
+    Type = 'Deafen'
     Selected_Code = "SELECT Thing FROM Strike_Code"
     Cursor.execute(Selected_Code)
     records = Cursor.fetchall()
-    Number = 0
-    for record in records:
-        Number = Number + 1
-    Number = Number + 1
-    Type = 'Warning'
-    Code1 = random.randint(0,999999999999999999)
-
-    In_Group = False
-    Today = date.today()
-    Now = datetime.now()
-    current_time = Now.strftime("%H:%M:%S")
-    current_Date = Today.strftime("%B %d, %Y")
+    User = await Client.fetch_user(Member.id)
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
-    Channel = Client.get_channel(931211310581035028)
+
     if In_Group == True or ctx.author.guild_permissions.administrator:
-        await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
-        Main = discord.Embed(title="**Infraction System**", description=f"Warned <@{Member.id}> successfully.")
-        Main.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
-        Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-
-        
-        User = discord.Embed(title="**Infraction System**", description=f"You've received a warning.")
-        User.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
-        User.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
-        User.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        User.set_author(name=f'{Member} ({Member.id})', icon_url=Member.avatar.url)
-
-        Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> warned <@{Member.id}>.")
-        Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
+        await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
+        Embed = discord.Embed(title="Deafen System")
+        Embed.add_field(name=f'__**{Member}**__ was successfuly voice deafened and muted.', value=f'Reason: {Reason}', inline=False)
+        Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar.url)
+        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+        Channel = Client.get_channel(941611620344406026)
+        Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> VoiceDeafened <@{Member.id}>.")
+        Infraction.add_field(name='**Infraction Code: **', value=f'{Code1}', inline=False)
         Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
         Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
         Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-        await ctx.channel.send(embed=Main)
-        Msg = await Channel.send(components=Revoke_Buttons, embed=Infraction)
-        database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Reason, Date, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Reason,f'{current_Date}, {current_time}', Type))
+        await Channel.send(embed=Infraction)
+        database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
         database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
-        Database.commit()
-
-
-        while True:
-            Interaction = await Client.wait_for("button_click")
-                
-            if Interaction and Interaction.message.id == Msg.id:
-                Infraction1 = discord.Embed(title="**Infraction System**", description=f"Infraction was revoked by {Interaction.user}.", color=0x992d22)
-                Infraction1.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
-                Infraction1.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
-                Infraction1.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
-                await Msg.edit(embed=Infraction1)
-                await Interaction.disable_components()
-
-        
-
+        await ctx.send(embed=Embed)
+        await Member.edit(deafen = True)
+        await Member.edit(mute = True)
     else:
-        await MissingPermission(ctx, ctx.author)
+        await MissingPermission(ctx, ctx.author) 
+
+
+@Client.command(aliases = ['Undeaf', 'UnVoiceDeafen', 'UnDeafen'], pass_context=True)
+async def _Undeafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason):
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    User = await Client.fetch_user(Member.id)
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
+        Embed = discord.Embed(title="Deafen System")
+        Embed.add_field(name=f'__**{Member}**__ was successfuly voice undeafened and unmuted.',value=f'Reason: {Reason}', inline=False)
+        Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar.url)
+        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+        Channel = Client.get_channel(941611620344406026)
+        Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> UnvoiceDeafened <@{Member.id}>.")
+        Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+        Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+        Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        await Channel.send(embed=Infraction)
+        await ctx.send(embed=Embed)
+        await Member.edit(deafen = False)
+        await Member.edit(mute = False)
+    else:
+        await MissingPermission(ctx, ctx.author) 
 
 
 
-@Client.command(aliases = ['Clearwarnings', 'Clr', 'Clear'],  pass_context=True)
-async def _ClearWarnings(ctx, Member: discord.Member, *, Reason):
-    
-    Selected_Code = "SELECT UserID FROM Warning_Logs"
-    Cursor.execute(Selected_Code)
-    records = Cursor.fetchall()
-    Number = 0
-    Type = 'Clear Warnings'
-    Code1 = random.randint(0,999999999999999999)
+@Client.command(aliases = ['Alert', 'ModReq'], pass_context=True)
+async def _Alert(ctx, Channel_Location: discord.TextChannel,Message_Id:int): 
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    msg = await Channel_Location.fetch_message(Message_Id)
+    Channel = Client.get_channel(941411399597445252)
+    Message = discord.Embed(title="Moderation Alert", description='All active moderators, please handle the situation.', color=0x546e7a)
+    Message.add_field(name='Message ID: ', value=f'`{Message_Id}`', inline=False)
+    Message.add_field(name='Who wrote the message? ', value=f'`{msg.author}/`<@{msg.author.id}>', inline=False)
+    Message.add_field(name='Who reported the message? ', value=f'`{ctx.author}/`<@{ctx.author.id}>', inline=False)
+    Message.add_field(name='When? ', value=f'`{msg.created_at}`', inline=False)
+    Message.add_field(name='Where? ', value=f'<#{Channel_Location.id}>', inline=False)
+    Message.add_field(name='Date of the report: ', value=f'{current_time}, {current_Date}', inline=False)
+    Message.add_field(name='Message:', value=f'''
+```
+{msg.content}
+```
+    ''', inline=False)
+    await Channel.send("All active <@&901486519552995348>, please handle this situation", embed=Message)
 
-    In_Group = False
-    Today = date.today()
-    Now = datetime.now()
-    current_time = Now.strftime("%H:%M:%S")
-    current_Date = Today.strftime("%B %d, %Y")
+@Client.command(aliases = ['Lock', 'LockChannel'], pass_context=True)
+async def _Lock(ctx, Channel: discord.TextChannel, Amount: int, *,Reason):
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    Time = f'{current_Date}, {current_time}'
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
     if In_Group == True or ctx.author.guild_permissions.administrator:
-        await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
-        Main = discord.Embed(title="**Infraction System**", description=f"Cleared <@{Member.id}>'s warning logs.")
-        Main.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
-        Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-        Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-        await ctx.channel.send(embed=Main)
-        for record in records:
-            database.execute("DELETE FROM Warning_Logs WHERE UserID=?", (Member.id,))
-
+        if Amount <=9:
+            Close_Embed = discord.Embed(title="Lock System", description=f'The minutes picked is too short, please use 10 seconds or more.', color=0xe67e22)
+            Close_Embed.set_footer(text=f'You should contact a system developer if you think this is a mistake.', icon_url=ctx.author.avatar.url)
+            await ctx.send(embed=Close_Embed)
+        else:
+            Final_Embed = discord.Embed(title="Lock System", description=f'<#{Channel.id}> was locked for {Amount} seconds.', color=0x546e7a)
+            Final_Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            await Logging(ctx, ctx.message.content,ctx.author, ctx.author, f"Affected channel is <#{Channel.id}> for {Amount} seconds with the reason: {Reason}", ctx.channel)
+            overwrite = Channel.overwrites_for(ctx.guild.default_role)
+            overwrite.send_messages = False
+            await Channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+            await Channel.send(embed=Final_Embed)
+            time.sleep(Amount)
+            Embed = discord.Embed(title="Lock System", description=f'<#{Channel.id}> was unlocked.', color=0x546e7a)
+            Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            overwrite2 = Channel.overwrites_for(ctx.guild.default_role)
+            overwrite2.send_messages = True
+            await Channel.set_permissions(ctx.guild.default_role, overwrite=overwrite2)
+            await Channel.send(embed=Embed)
+    else:
+        await MissingPermission(ctx, ctx.author)
 
 @Client.command(aliases = ['U', 'User', 'UserInfo'],  pass_context=True)
 async def _User(ctx, Member: Union[discord.Member,discord.Object]):
@@ -1225,78 +534,8 @@ async def _Case(ctx, Code):
         Final_Embed.add_field(name='Date: ', value=f'{record4[0]}', inline=False)
         Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
         await ctx.send(embed=Final_Embed)
-
-
-
-@Client.command(aliases = ['Rule', 'Rules'], pass_context=True)
-async def _Rule(ctx):
-    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
-    Main2 = discord.Embed(title="**Rules**", description=f"All further information was directed into your Direct Messages/DMs.", color=0x7289da)
-    Main2.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-    await ctx.send(embed=Main2)
-
-    Main = discord.Embed(title="**__Rules__**", description=f"All rules must be followed at all times. Not doing so will result in any type of punishments.", color = 0x7289da)
-    Main.add_field(name='Rules: ', value=f'''
-`+` 1. All chat rooms are to remain clean. __(No dramas, no toxicity, no fights, no arguments, no sexual remarks)__
-
-`+` 2. You are to respect yourself and those with you.
-
-`+` 3. __Toxicity__ shall not be tolerated in any form.
-
-`+` 4. __Harassment__ shall not be tolerated.
-
-`+` 5. __Leaking__ any **personal information** is not tolerated or classified information, and will lead to your removal **permanently**.
-
-`+` 6. Make sure to use each text chat for their correct purpose.
-
-`+` 7. Don’t “ @ “ someone without a good reason, the majority of people dislike being ‘pinged’.
-
-`+` 9. __Blackmail__ and threats will not be tolerated, punishments will be held against you.
-
-`+` 10. __Swearing__ is allowed but do not do it excessively or use it to offend or insult someone.
-
-`+` 11. All commands used should be used in its right [channels](https://discord.com/channels/930950743396061224/931210732060692490).
-
-`+ 12.` All HiddenDevs rules are applicable here.
-''', inline=False)
-    Main.set_image(url="https://media.discordapp.net/attachments/930963981114417182/931210544369782834/New1.png?width=410&height=410")
-    await ctx.author.send(embed=Main)
-
-
-@Client.command(aliases = ['Lock', 'LockChannel'], pass_context=True)
-async def _Lock(ctx, Channel: discord.TextChannel, Amount: int, *,Reason):
-    today = date.today()
-    now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
-    current_Date = today.strftime("%B %d, %Y")
-    Time = f'{current_Date}, {current_time}'
-    await RoleChecker(ctx, ctx.author)
-    result_from_errorrank = await RoleChecker(ctx, ctx.author)
-    In_Group = result_from_errorrank
-    if In_Group == True or ctx.author.guild_permissions.administrator:
-        if Amount <=9:
-            Close_Embed = discord.Embed(title="Lock System", description=f'The minutes picked is too short, please use 10 seconds or more.', color=0xe67e22)
-            Close_Embed.set_footer(text=f'You should contact a system developer if you think this is a mistake.', icon_url=ctx.author.avatar.url)
-            await ctx.send(embed=Close_Embed)
-        else:
-            Final_Embed = discord.Embed(title="Lock System", description=f'<#{Channel.id}> was locked for {Amount} seconds.', color=0x546e7a)
-            Final_Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            await Logging(ctx, ctx.message.content,ctx.author, ctx.author, f"Affected channel is <#{Channel.id}> for {Amount} seconds with the reason: {Reason}", ctx.channel)
-            overwrite = Channel.overwrites_for(ctx.guild.default_role)
-            overwrite.send_messages = False
-            await Channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
-            await Channel.send(embed=Final_Embed)
-            time.sleep(Amount)
-            Embed = discord.Embed(title="Lock System", description=f'<#{Channel.id}> was unlocked.', color=0x546e7a)
-            Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            overwrite2 = Channel.overwrites_for(ctx.guild.default_role)
-            overwrite2.send_messages = True
-            await Channel.set_permissions(ctx.guild.default_role, overwrite=overwrite2)
-            await Channel.send(embed=Embed)
     else:
-        await MissingPermission(ctx, ctx.author)
-
-
+        await MissingPermission(ctx, ctx.author) 
 
 @Client.command(aliases = ['Unban'], pass_context=True)
 async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
@@ -1322,6 +561,12 @@ async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
                 Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
                 Embed.set_thumbnail(url=User.avatar.url)
                 Embed.set_footer(text=f'Unbanned by {ctx.author}.', icon_url=ctx.author.avatar.url)
+                Channel = Client.get_channel(941611620344406026)
+                Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> unbanned <@{Member.id}>.")
+                Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+                Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+                Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                await Channel.send(embed=Infraction)
                 await ctx.channel.send(embed=Embed)
                 await ctx.guild.unban(user)
                 break
@@ -1336,33 +581,51 @@ async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
     else:
         await MissingPermission(ctx, ctx.author)
 
-@Client.command(aliases = ['Nick', 'Nickname', 'Name'], pass_context=True)
-async def _Nick(ctx, Member: Union[discord.Member,discord.Object],*,Nick):
-    today = date.today()
-    now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
-    current_Date = today.strftime("%B %d, %Y")
-    User = await Client.fetch_user(Member.id) 
-    Time = f'{current_Date}, {current_time}'
+@Client.command(aliases = ['Clearwarnings'],  pass_context=True)
+async def _ClearWarnings(ctx, Member: discord.Member, *, Reason):
+    
+    Selected_Code = "SELECT UserID FROM Warning_Logs"
+    Cursor.execute(Selected_Code)
+    records = Cursor.fetchall()
+    Number = 0
+    Type = 'Clear Warnings'
+    Code1 = random.randint(0,999999999999999999)
 
+    In_Group = False
+    Today = date.today()
+    Now = datetime.now()
+    current_time = Now.strftime("%H:%M:%S")
+    current_Date = Today.strftime("%B %d, %Y")
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
-
     if In_Group == True or ctx.author.guild_permissions.administrator:
-        await Logging(ctx, ctx.message.content,ctx.author, User, f'Nickname is now changed to: {Nick}', ctx.channel)
-        await Member.edit(nick=Nick)
-        Embed = discord.Embed(title="Nickname System")
-        Embed.add_field(name=f'__**{User}**__ username was successfuly changed to ', value=f'{Nick}', inline=False)
-        Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
-        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-        await ctx.send(embed=Embed)
+        await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
+        Main = discord.Embed(title="**Infraction System**", description=f"Cleared <@{Member.id}>'s warning logs.")
+        Main.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
+        Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+        Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        Channel = Client.get_channel(941611620344406026)
+        Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> cleared <@{Member.id}>'s warnings.")
+        Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
+        Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+        Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+        Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        await Channel.send(embed=Infraction)
+        await ctx.channel.send(embed=Main)
+        for record in records:
+            database.execute("DELETE FROM Warning_Logs WHERE UserID=?", (Member.id,))
     else:
-        await MissingPermission(ctx, ctx.author)
+        await MissingPermission(ctx, ctx.author) 
 
+@Client.command(aliases = ['Version'],  pass_context=True)
+async def _Version(ctx):
+    await ctx.channel.send(f"The bot is version 0.2.0 Alpha.")
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
 
-@Client.command(aliases = ['Softban', 'Sb','Sban'],  pass_context=True)
-async def _SoftBan(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
+@Client.command(aliases = ['Ban'],  pass_context=True)
+async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
+
     today = date.today()
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
@@ -1378,7 +641,7 @@ async def _SoftBan(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
     for record in records:
         Number = Number + 1
     Number = Number + 1
-    Type = 'Soft Ban'
+    Type = 'Ban'
     Code1 = random.randint(0,999999999999999999)
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
@@ -1392,155 +655,278 @@ async def _SoftBan(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
         if In_Group2==True:
             await MissingPermission(ctx, ctx.author)
         else:
-            Embed = discord.Embed(title="Soft Ban System")
-            Embed.add_field(name=f'__**{User}**__ was soft banned successfuly for: ', value=f'{Reason}', inline=False)
+            print(User)
+            Embed = discord.Embed(title="Ban System")
+            Embed.add_field(name=f'__**{User}**__ was banned successfuly because of: ', value=f'{Reason}', inline=False)
             Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
             Embed.set_thumbnail(url=User.avatar.url)
-            Embed.set_footer(text=f'Soft Banned by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            Embed.set_footer(text=f'Banned by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            Channel = Client.get_channel(941611620344406026)
+            Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> banned <@{Member.id}>.")
+            Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
+            Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+            Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+            Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            await Channel.send(embed=Infraction)
             await ctx.channel.send(embed=Embed)
 
             await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
             database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
             database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
             Database.commit()
-            await ctx.guild.ban(User,reason=Reason, delete_message_days=7)
-            await ctx.guild.unban(User)
+            await ctx.guild.ban(User, reason=Reason)
     else:
         await MissingPermission(ctx, ctx.author)
 
+@Client.command(aliases = ['Inf', 'Infractions', 'Warnings', 'Warnlist', 'i'],  pass_context=True)
+async def _Infraction(ctx, Member: Union[discord.Member,discord.Object]):
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        Warnings_User = None
+        Selected_User = "SELECT UserID FROM Warning_Logs WHERE UserID = %d" % Member.id
+        Cursor.execute(Selected_User)
+        records5 = Cursor.fetchall()
+        User_Edited = f"[{records5}]"
+        await Logging(ctx, ctx.message.content,ctx.author, Member, None, ctx.channel)
+        if User_Edited != "[[]]":
+            Warnings_User = records5[0][0]
+        if Member.id == Warnings_User:
+            Warnings_Date = []
+            Warnings_Reason = []
+            Warnings_Admin = []
+            Warnings_Type = []
+            Selected_Code = "SELECT Code FROM Warning_Logs WHERE UserID = %d" % Member.id
+            Selected_Reason = "SELECT Reason FROM Warning_Logs WHERE UserID = %d" % Member.id
+            Selected_Date = "SELECT Date FROM Warning_Logs WHERE UserID = %d" % Member.id
+            Selected_Admin = "SELECT Administrator FROM Warning_Logs WHERE UserID = %d" % Member.id
+            Selected_Type = "SELECT Type FROM Warning_Logs WHERE UserID = %d" % Member.id
+            Cursor.execute(Selected_Code)
+            records = Cursor.fetchall()
+            Cursor.execute(Selected_Reason)
+            records2 = Cursor.fetchall()
+            Cursor.execute(Selected_Date)
+            records3 = Cursor.fetchall()
+            Cursor.execute(Selected_Admin)
+            records4 = Cursor.fetchall()
+            Cursor.execute(Selected_Type)
+            records5 = Cursor.fetchall()
 
-@Client.command(aliases = ['ServerInfo', 'Sinfo'],  pass_context=True)
-async def _ServerInfo(ctx):
-    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
-    Number2 = 1
-    Number3 = 1
-    for Channels in ctx.guild.channels:
-        Number2 = Number2 + 1
-    for Roles in ctx.guild.roles:
-        Number3 = Number3 + 1
-    Embed = discord.Embed(title="Server Information")
-    Embed.add_field(name=f'Server is owned by: ', value=f'{ctx.guild.owner}/{ctx.guild.owner_id}/<@{ctx.guild.owner_id}>', inline=False)
-    Embed.add_field(name=f'The server region is: ', value=f'{ctx.guild.region}', inline=False)
-    Embed.add_field(name=f'The server description: ', value=f'{ctx.guild.description}', inline=False)
-    Embed.add_field(name=f'The server Creation Date: ', value=f'{ctx.guild.created_at}', inline=False)
-    Embed.add_field(name=f'The server default notifications: ', value=f'{ctx.guild.default_notifications}', inline=False)
-    Embed.add_field(name=f'Amount of members in the guild: ', value=f'{ctx.guild.member_count}', inline=False)
-    Embed.add_field(name=f'Amount of channels in the guild: ', value=f'{Number2}', inline=False)
-    Embed.add_field(name=f'Amount of roles in the guild: ', value=f'{Number3}', inline=False)
-    Embed.add_field(name=f'The server max presences: ', value=f'{ctx.guild.max_presences}', inline=False)
-    Embed.add_field(name=f'The server verification level: ', value=f'{ctx.guild.verification_level}', inline=False)
-    Embed.add_field(name=f'The server AFK channel is: ', value=f'{ctx.guild.afk_channel}', inline=False)
-    Embed.set_author(name=f'{ctx.guild.name} ({ctx.guild.id})', icon_url=ctx.guild.icon_url)
-    Embed.set_thumbnail(url=ctx.guild.icon_url)
-    Embed.set_footer(text=f'Requested {ctx.author}.', icon_url=ctx.author.avatar.url)
-    await ctx.send(embed=Embed)
+            Request = discord.Embed(title="**Infraction Logs**", description=f"<@{Member.id}>'s Infractions: ", color=0xe67e22)
 
+            Code_Number = 0
+            for record in records:
+                for record2 in records2:
+                    Warnings_Reason.insert(1, record2)
+                    for record3 in records3:
+                        Warnings_Date.insert(1, record3)
+                        for record4 in records4:
+                            Warnings_Admin.insert(1, record4)
+                            for record5 in records5:
+                                Warnings_Type.insert(1, record5)
 
-@Client.command(aliases = ['Rps'],  pass_context=True)
-async def _RPS(ctx):
-    Number = random.randint(1,3)
-    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
-    if Number == 1:
-        await ctx.send('Rock')
-    elif Number == 2:
-        await ctx.send('Paper')
-    elif Number == 3:
-        await ctx.send('Scissors')
-
-@Client.command(aliases = ['RandomNumber', 'Rn', 'RandomN'],  pass_context=True)
-async def _RandomNumber(ctx, First_Number: int, Second_Number:int):
-    if First_Number >= Second_Number:
-        await ctx.send('First number should be less than the second number, e.g: 1 to 6')
+            
+            for record in records:
+                Code_Number = Code_Number + 1
+                Request.add_field(name=f'Infraction Number {Code_Number}: ', value=f'''
+**Code: ** `{record[0]}`
+**Type: ** {Warnings_Type[0][0]}
+**Reason: ** {Warnings_Reason[0][0]}
+**Date: ** {Warnings_Date[0][0]}
+**Infracted by: ** <@{Warnings_Admin[0][0]}>
+                ''', inline=False)
+            Request.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            Request.set_author(name=f'{Member} ({Member.id})', icon_url=ctx.author.avatar.url)
+            await ctx.send(embed=Request)
+        else:
+            Nothign = discord.Embed(title="**Infraction Logs**", description=f"<@{Member.id}> was never warned, muted, kicked or banned by the bot.", color=0x9b59b6)
+            Nothign.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            await ctx.send(embed=Nothign)
     else:
-        Number = random.randint(First_Number,Second_Number)
-        await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F'Random number: {Number}', ctx.channel)
-        await ctx.send(Number)
-    
+        await MissingPermission(ctx, ctx.author)  
 
-@Client.command(aliases = ['Deaf', 'VoiceDeafen', 'Deafen'], pass_context=True)
-async def _Deafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason):
+@Client.command(aliases = ['Kick'],  pass_context=True)
+async def _Kick(ctx, Member: discord.Member,*, Reason):
     today = date.today()
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
     Time = f'{current_Date}, {current_time}'
-    Code1 = random.randint(0,999999999999999999)
-    Type = 'Deafen'
+
+    
     Selected_Code = "SELECT Thing FROM Strike_Code"
     Cursor.execute(Selected_Code)
     records = Cursor.fetchall()
-    User = await Client.fetch_user(Member.id)
+    Number = 0
+    for record in records:
+        Number = Number + 1
+    Number = Number + 1
+    Type = 'Kick'
+    Code1 = random.randint(0,999999999999999999)
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
-
     if In_Group == True or ctx.author.guild_permissions.administrator:
-        await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
-        Embed = discord.Embed(title="Deafen System")
-        Embed.add_field(name=f'__**{Member}**__ was successfuly voice deafened and muted.', value=f'Reason: {Reason}', inline=False)
-        Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar.url)
-        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-        database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
-        database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
-        await ctx.send(embed=Embed)
-        await Member.edit(deafen = True)
-        await Member.edit(mute = True)
+        await RoleChecker(ctx, Member)
+        Result = await RoleChecker(ctx, Member)
+        In_Group2 = Result
+        if In_Group2==True or Member.guild_permissions.administrator:
+            await MissingPermission(ctx, ctx.author)
+        else:
+            Embed = discord.Embed(title="Member Was Kicked Successfuly")
+            Embed.add_field(name=f'__**{Member}**__ was kicked successfuly because of: ', value=f'{Reason}', inline=False)
+            Embed.set_author(name='Kicked ', icon_url=Member.avatar.url)
+            Embed.set_thumbnail(url=Member.avatar.url)
+            Embed.set_footer(text=f'Kicked by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            Channel = Client.get_channel(941611620344406026)
+            Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> kicked <@{Member.id}>.")
+            Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
+            Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+            Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+            Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            await Channel.send(embed=Infraction)
+            await ctx.channel.send(embed=Embed)    
+            await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
+            database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
+            database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
+            Database.commit()
+            await Member.kick(reason=Reason)
+    else:
+        await MissingPermission(ctx, ctx.author)
 
 
-@Client.command(aliases = ['Undeaf', 'UnVoiceDeafen', 'UnDeafen'], pass_context=True)
-async def _Undeafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason):
-    User = await Client.fetch_user(Member.id)
+@Client.command(aliases = ['Purge', 'ClerChat', 'PurgeChat'],  pass_context=True)
+async def _Purge(ctx, Amount: int):
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
-
     if In_Group == True or ctx.author.guild_permissions.administrator:
-        await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
-        Embed = discord.Embed(title="Deafen System")
-        Embed.add_field(name=f'__**{Member}**__ was successfuly voice undeafened and unmuted.',value=f'Reason: {Reason}', inline=False)
-        Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar.url)
-        Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-        await ctx.send(embed=Embed)
-        await Member.edit(deafen = False)
-        await Member.edit(mute = False)
+        await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"{Amount} Message(s)", ctx.channel)
+        if Amount <=1:
+            today = date.today()
+            now = datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+            current_Date = today.strftime("%B %d, %Y")
+            Channel = Client.get_channel(941411413468016760)
+            Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
+            Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+            Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Embed.add_field(name="Error Message:", value=f'__**Please enter a valid number.**__', inline=False)
+            Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            await Channel.send(embed=Embed)
+            await ctx.channel.send(embed=Embed)
+        else:
+            await ctx.channel.purge(limit = Amount)
+            Embed = discord.Embed(title="Purge Command", description=f'Purged {Amount} message(s).', color=0xe74c3c)
+            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            time.sleep(.5)
+            await ctx.channel.send(embed=Embed,delete_after=10)
+    else:
+        await MissingPermission(ctx, ctx.author)
 
 
+@Client.command(aliases = ['Slowmode', 'Cooldown', 'Slow', 'Slowmodechat'],  pass_context=True)
+async def _Slowmode(ctx, Amount: int):
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"{Amount} Second(s)", ctx.channel)
+        if Amount <0:
+            today = date.today()
+            now = datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+            current_Date = today.strftime("%B %d, %Y")
+            Channel = Client.get_channel(941411413468016760)
+            Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
+            Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+            Embed.add_field(name="Error Message:", value=f'__**Please enter a valid number.**__', inline=False)
+            Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            await Channel.send(embed=Embed)
+            await ctx.channel.send(embed=Embed)
+        elif Amount == 0:
+            Embed = discord.Embed(title="Slowmode Command", description=f'Slow mode is disabled, slow mode is now {Amount} second(s) per message.', color=0x00ff00)
+            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            await ctx.channel.edit(slowmode_delay=0)
+            await ctx.channel.send(embed=Embed)
+        else:
+            Embed = discord.Embed(title="Slowmode Command", description=f'Slow mode is enabled, slow mode is now {Amount} second(s) per message', color=0x95a5a6)
+            Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            await ctx.channel.edit(slowmode_delay=Amount)
+            await ctx.channel.send(embed=Embed)
+    else:
+        await MissingPermission(ctx, ctx.author)
 
-
-
-
-
-@Client.command(aliases = ['Alert', 'ModReq'], pass_context=True)
-async def _Alert(ctx, Channel_Location: discord.TextChannel,Message_Id:int): 
+@Client.command(aliases = ['Time', 'Date'],  pass_context=True)
+async def _Time(ctx):
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
     today = date.today()
     now = datetime.now()
+
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
-    msg = await Channel_Location.fetch_message(Message_Id)
-    Channel = Client.get_channel(931211162924769300)
-    Message = discord.Embed(title="Moderation Alert", description='All active moderators, please handle the situation.', color=0x546e7a)
-    Message.add_field(name='Message ID: ', value=f'`{Message_Id}`', inline=False)
-    Message.add_field(name='Who wrote the message? ', value=f'`{msg.author}/`<@{msg.author.id}>', inline=False)
-    Message.add_field(name='Who reported the message? ', value=f'`{ctx.author}/`<@{ctx.author.id}>', inline=False)
-    Message.add_field(name='When? ', value=f'`{msg.created_at}`', inline=False)
-    Message.add_field(name='Where? ', value=f'<#{Channel_Location.id}>', inline=False)
-    Message.add_field(name='Date of the report: ', value=f'{current_time}, {current_Date}', inline=False)
-    Message.add_field(name='Message:', value=f'''
-```
-{msg.content}
-```
-    ''', inline=False)
-    await Channel.send("All active <@&930992109773803540>, please handle this situation", embed=Message)
+    Embed = discord.Embed(title="Time Command", description='Your time period should be shown below: ', color=0x546e7a)
+    Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+    Embed.set_thumbnail(url=ctx.author.avatar.url)
+    Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+    await ctx.channel.send(embed=Embed)
+    pass
 
+@Client.command(aliases = ['Warn', 'Strike', 'Infract'],  pass_context=True)
+async def _Warn(ctx, Member: discord.Member, *, Reason):
+    Selected_Code = "SELECT Thing FROM Strike_Code"
+    Cursor.execute(Selected_Code)
+    records = Cursor.fetchall()
+    Number = 0
+    for record in records:
+        Number = Number + 1
+    Number = Number + 1
+    Type = 'Warning'
+    Code1 = random.randint(0,999999999999999999)
 
-Client.run('OTMxMjEyODA5NzYzNjg0Mzcy.YeBJgg.0_uHUjJDQ30V826uQ-PfHW9VcHM') 
+    In_Group = False
+    Today = date.today()
+    Now = datetime.now()
+    current_time = Now.strftime("%H:%M:%S")
+    current_Date = Today.strftime("%B %d, %Y")
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+    Channel = Client.get_channel(941611620344406026)
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
+        Main = discord.Embed(title="**Infraction System**", description=f"Warned <@{Member.id}> successfully.")
+        Main.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
+        Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+        Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
 
+        
+        User = discord.Embed(title="**Infraction System**", description=f"You've received a warning.")
+        User.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
+        User.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
+        User.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+        User.set_author(name=f'{Member} ({Member.id})', icon_url=Member.avatar.url)
 
+        Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> warned <@{Member.id}>.")
+        Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
+        Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+        Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+        Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        await ctx.channel.send(embed=Main)
+        Msg = await Channel.send(embed=Infraction)
+        database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Reason, Date, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Reason,f'{current_Date}, {current_time}', Type))
+        database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
+        Database.commit()
+    else:
+        await MissingPermission(ctx, ctx.author)
 
+Client.run('ODkxNjcyNzE0ODk5NzYzMjIw.YVBw7Q.7E4la6ihkgAtWQMz9SLfDysEyd4') 
 
 
 # ODkxNjcyNzE0ODk5NzYzMjIw.YVBw7Q.PJ_8PKH3u4vgwm6uZvixO4bKZCQ
 
 # OTA0NDUwODE0NjE2MTQxODI1.YX7tdg.f9kR32IFT7-AY9q2bm3qnkhEQt8
-
-
