@@ -156,7 +156,7 @@ async def RoleChecker(ctx, User):
     for Main in role1:
         for member in guild.members:
             if User == member:
-                for role in member.roles or member.id =="565558626048016395":
+                for role in member.roles: #or member.id =="565558626048016395":
                     if role == Main:
                         return True
             
@@ -193,23 +193,24 @@ async def Logging(ctx, cmd, author: None, effected_member: None, Reason: None, C
 async def _announce(ctx, Channel: discord.TextChannel, Title, *,Annoncement):
     class Button(discord.ui.View):
         @discord.ui.button(label='Confirm', style=discord.ButtonStyle.green)
-        async def Confirm(self, Confirm_Button: discord.ui.Button, interaction: discord.Interaction):
-            view = Button()
-            for item in view.children:
-                if isinstance(item, discord.Button):
-                    item.disabled = True
-        
+        async def Confirm(self, Confirm_Button: discord.ui.Button, interaction: discord.Interaction):        
+            print('Working on it')
             Main = discord.Embed(color=0x2ecc71)
             Main.add_field(name=f'{Title}',value=Annoncement, inline=False)
             Main.set_author(name=f'Important Announcement', icon_url=ctx.author.avatar.url)
             Confirm_Button.disabled = True
             await Channel.send(embed=Main)
             await interaction.message.edit(view=self)
+            print('Finished')
 
-        @discord.ui.button(label='Revoke', style=discord.ButtonStyle.red)
-        async def Revoke(self, Revoke_Button: discord.ui.Button, interaction: discord.Interaction):
-            Revoke_Button.disabled = True
-            await interaction.response.edit_message(view=self)
+        def __init__(self, timeout):
+            super().__init__(timeout=timeout)
+            self.response = None 
+
+        async def on_timeout(self):
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self) 
 
         
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
@@ -220,7 +221,7 @@ async def _announce(ctx, Channel: discord.TextChannel, Title, *,Annoncement):
         Accepted = discord.Embed(title=f"**{Title}**", description=f"Full announcement made by {ctx.author}: ", color=0x3498db)
         Accepted.add_field(name=f'__Announcement Accepted__', value=f'Announcement View: {Annoncement}', inline=False)
         Accepted.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-        view = Button()
+        view = Button(timeout=20)
         view.message = await ctx.send('Preview!',embed=Accepted, view=view)
     else:
         await MissingPermission(ctx, ctx.author) 
@@ -438,6 +439,7 @@ async def _Lock(ctx, Channel: discord.TextChannel, Amount: int, *,Reason):
             overwrite.send_messages = False
             await Channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
             await Channel.send(embed=Final_Embed)
+            await ctx.send(embed=Final_Embed)
             time.sleep(Amount)
             Embed = discord.Embed(title="Lock System", description=f'<#{Channel.id}> was unlocked.', color=0x546e7a)
             Embed.set_footer(text=f'Locked by {ctx.author}.', icon_url=ctx.author.avatar.url)
