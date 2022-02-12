@@ -35,7 +35,8 @@ import slash_util
 
 
 class Alert(slash_util.Cog):
-    def __init__(self, bot: commands.bot):
+    def __init__(self, bot: slash_util.Bot):
+        self.bot = bot
         super().__init__(bot)
 
     @slash_util.message_command(guild_id=900845173989339186)

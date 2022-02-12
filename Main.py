@@ -41,10 +41,7 @@ class MyBot(slash_util.Bot):
 
         for folder in os.listdir("modules"):
             if os.path.exists(os.path.join("modules", folder, "cog.py")):
-                self.load_extension(f"modules.{folder}.cog")  
-    @slash_util.message_command(guild_id=900845173989339186)
-    async def Alert(self, ctx: slash_util.Context, message: discord.Message): 
-        await ctx.send(message)
+                self.load_extension(f"modules.{folder}.cog") 
 
 
 Client = slash_util.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
@@ -134,6 +131,11 @@ async def on_member_join(Member):
     Time = f'{current_Date}, {current_time}'
     database.execute("INSERT INTO Users (UserID, Time) VALUES (?, ?)", (Member.id, Time))
     Database.commit()
+
+@slash_util.message_command(guild_id=900845173989339186)
+async def Alert(self, ctx: slash_util.Context, message: discord.Message): 
+    await ctx.send(message)
+
 
 @Client.event
 async def on_command_error(ctx, error):
