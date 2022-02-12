@@ -1,8 +1,14 @@
 from logging import fatal
+from platform import python_version
+from discord import Embed, __version__ as discord_version
+from psutil import Process, virtual_memory
+import datetime
+from datetime import datetime, timedelta, date
+import time
+from time import time
 from re import A
 from sqlite3.dbapi2 import Cursor
 import discord
-import time
 import random
 from typing import Final, Union
 from discord import embeds
@@ -11,15 +17,10 @@ from discord import member
 from discord.enums import try_enum
 from discord.errors import PrivilegedIntentsRequired
 from discord.ext import commands
-import interactions
-from interactions import *
-from interactions.api.models.member import Member
-from interactions.ext.wait_for import wait_for, setup
 import asyncio
 import certifi
 import aiohttp
 from sqlite3 import connect
-from datetime import date, datetime
 import praw
 import re
 import string
@@ -39,12 +40,13 @@ class MyBot(slash_util.Bot):
     def __init__(self):
         super().__init__(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())  
 
-        for folder in os.listdir("modules"):
-            if os.path.exists(os.path.join("modules", folder, "cog.py")):
-                self.load_extension(f"modules.{folder}.cog") 
+        #for folder in os.listdir("modules"):
+            #if os.path.exists(os.path.join("modules", folder, "cog.py")):
+                #self.load_extension(f"modules.{folder}.cog") 
+        self.load_extension(f"modules.message.cog") 
 
 
-Client = slash_util.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
+Client = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client.remove_command("help")
 Database = connect("database.db")
 Cursor = Database.cursor()
@@ -132,11 +134,6 @@ async def on_member_join(Member):
     database.execute("INSERT INTO Users (UserID, Time) VALUES (?, ?)", (Member.id, Time))
     Database.commit()
 
-@slash_util.message_command(guild_id=900845173989339186)
-async def Alert(self, ctx: slash_util.Context, message: discord.Message): 
-    await ctx.send(message)
-
-
 @Client.event
 async def on_command_error(ctx, error):
     today = date.today()
@@ -153,7 +150,6 @@ async def on_command_error(ctx, error):
     await ctx.channel.send(embed=Embed)
     await Channel.send(embed=Embed)
     pass
-
 
 async def RoleChecker(ctx, User):
 
@@ -942,7 +938,29 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
     else:
         await MissingPermission(ctx, ctx.author)
 
-
+@Client.command(aliases = ['Stats'])
+async def _Stats(ctx):
+    Proc = Process()
+    with Proc.oneshot():
+        cpu_Time = timedelta(seconds=(cpu := Proc.cpu_times().system))
+        uptime = timedelta(seconds=time()-Proc.create_time())
+        MemoryTotal = virtual_memory().total / (1024**3)
+        MemoryOf = Proc.memory_percent()
+        Memory_Usage = MemoryTotal * (MemoryOf / 100)
+    Start_Response = time()
+    message = await ctx.send("Waiting for a response")
+    end = time()
+    StatsE = discord.Embed(title="**Stats System**")
+    StatsE.add_field(name='**Ping: **', value=f'{Client.latency*1000:,.0f} ms', inline=False)
+    StatsE.add_field(name='**Response Time: **', value=f'{(end-Start_Response)*1000:,.0f} ms', inline=False)
+    StatsE.add_field(name='**TimeStamp: **', value=f'{datetime.utcnow()}', inline=False)
+    StatsE.add_field(name='**Uptime: **', value=f'{uptime}', inline=False)
+    StatsE.add_field(name='**CPU Time: **', value=f'{cpu_Time}', inline=False)
+    StatsE.add_field(name='**Memory: **', value=f'{Memory_Usage:,.2f} / {MemoryTotal:,.0f} / {MemoryOf}%', inline=False)
+    StatsE.add_field(name='**Python Version: **', value=f'{python_version}', inline=False)
+    StatsE.add_field(name='**Discord Version: **', value=f'{discord_version}', inline=False)
+    StatsE.add_field(name='**Members: **', value=f'{ctx.guild.member_count:,}', inline=False)
+    await message.edit(embed=StatsE)
 
 if __name__ == "__main__": 
     MyBot()
