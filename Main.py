@@ -30,10 +30,24 @@ import sys
 from collections import defaultdict
 import discord.http, discord.state
 from discord.utils import MISSING
+from typing import Literal
+import slash_util
+import os
 
 
+class MyBot(slash_util.Bot):
+    def __init__(self):
+        super().__init__(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())  
 
-Client = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
+        for folder in os.listdir("modules"):
+            if os.path.exists(os.path.join("modules", folder, "cog.py")):
+                self.load_extension(f"modules.{folder}.cog")  
+    @slash_util.message_command(guild_id=900845173989339186)
+    async def Alert(self, ctx: slash_util.Context, message: discord.Message): 
+        await ctx.send(message)
+
+
+Client = slash_util.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client.remove_command("help")
 Database = connect("database.db")
 Cursor = Database.cursor()
@@ -926,9 +940,12 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
     else:
         await MissingPermission(ctx, ctx.author)
 
+
+
+if __name__ == "__main__": 
+    MyBot()
+
 Client.run('ODkxNjcyNzE0ODk5NzYzMjIw.YVBw7Q.7E4la6ihkgAtWQMz9SLfDysEyd4') 
-
-
 # ODkxNjcyNzE0ODk5NzYzMjIw.YVBw7Q.PJ_8PKH3u4vgwm6uZvixO4bKZCQ
 
 # OTA0NDUwODE0NjE2MTQxODI1.YX7tdg.f9kR32IFT7-AY9q2bm3qnkhEQt8
