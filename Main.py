@@ -968,12 +968,13 @@ TypeTicket = "None"
 @Client.command(aliases = ['Ticket', 'Report'])
 async def _Ticket(ctx):
     global TypeTicket
+    global Text 
+    Text = None
     Channel2 = Client.get_channel(942443398785286204)
     Today = date.today()
     Now = datetime.now()
     current_time = Now.strftime("%H:%M:%S")
     current_Date = Today.strftime("%B %d, %Y")
-    Text = None
     Selected_Code = "SELECT Ticket FROM Ticket_Logs"
     Cursor.execute(Selected_Code)
     records = Cursor.fetchall()
@@ -997,8 +998,28 @@ async def _Ticket(ctx):
             await interaction.response.edit_message(embed=Claimed_Embed,view=self)
         @discord.ui.button(label='Edit', style=discord.ButtonStyle.gray)
         async def Edit_Button(self, Edit_Button: discord.ui.Button, interaction: discord.Interaction):   
-            await Channel2.send('WIP')     
-            await interaction.message.edit(view=self)
+            await interaction.user.send("Please reply to this text with your note!")
+            Note = await Client.wait_for('message', check=lambda message: message.author == interaction.user)
+            if isinstance(Note.channel, discord.channel.TextChannel):
+                Cancelled = discord.Embed(title="**Ticket System**", description=f"Note cancelled, please recreate your ticket and reply in Direct Messages", color=0xe74c3c)
+                Cancelled.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                Cancelled.set_author(name=f'{interaction.user} ({interaction.user.id})', icon_url=interaction.user.avatar.url)
+                Cancelled.set_thumbnail(url=ctx.author.avatar.url)
+                await ctx.author.send(embed=Cancelled)
+            elif isinstance(Note.channel, discord.channel.DMChannel):
+                global Text
+                Text = Note.content
+                Claimed_Embed = discord.Embed(title=f"Ticket Claimed by {interaction.user}", description=f'Ticket Type: {TypeTicket}', color=0xe67e22)
+                Claimed_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+                Claimed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+                Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
+                Claimed_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
+                Claimed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+                Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+                await interaction.user.send('Everything was saved successfully!')
+
+            await interaction.message.edit(embed=Claimed_Embed, view=self)
         @discord.ui.button(label='Close', style=discord.ButtonStyle.red)
         async def Close_Button(self, Close_Button: discord.ui.Button, interaction: discord.Interaction):  
             CurrentType = "Close"
@@ -1126,6 +1147,7 @@ async def _Ticket(ctx):
         Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
         view = Tickets(timeout=20)
         Msg = view.message = await ctx.author.send('Preview!',embed=Type, view=view)
+
 
 
 if __name__ == "__main__": 
