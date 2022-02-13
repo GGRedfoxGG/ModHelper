@@ -5,7 +5,7 @@ from psutil import Process, virtual_memory
 import datetime
 from datetime import datetime, timedelta, date
 import time
-from time import time
+from time import sleep
 from re import A
 from sqlite3.dbapi2 import Cursor
 import discord
@@ -36,15 +36,6 @@ import slash_util
 import os
 
 
-class MyBot(slash_util.Bot):
-    def __init__(self):
-        super().__init__(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())  
-
-        #for folder in os.listdir("modules"):
-            #if os.path.exists(os.path.join("modules", folder, "cog.py")):
-                #self.load_extension(f"modules.{folder}.cog") 
-        self.load_extension(f"modules.message.cog") 
-
 
 Client = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client.remove_command("help")
@@ -52,6 +43,15 @@ Database = connect("database.db")
 Cursor = Database.cursor()
 Guild = object()
 
+
+class MyBot(slash_util.Bot):
+    def __init__(self):
+        super().__init__(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())  
+
+        for folder in os.listdir("modules"):
+            if os.path.exists(os.path.join("modules", folder, "cog.py")):
+                self.load_extension(f"modules.{folder}.cog") 
+        # elf.load_extension(f"modules.message.cog") 
 
 class database:
     def field(command, *values):
@@ -134,22 +134,22 @@ async def on_member_join(Member):
     database.execute("INSERT INTO Users (UserID, Time) VALUES (?, ?)", (Member.id, Time))
     Database.commit()
 
-@Client.event
-async def on_command_error(ctx, error):
-    today = date.today()
-    now = datetime.now()
-    current_time = now.strftime("%H:%M:%S")
-    current_Date = today.strftime("%B %d, %Y")
-    Channel = Client.get_channel(941411413468016760)
-    Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
-    Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar.url)
-    Embed.set_thumbnail(url=ctx.author.avatar.url)
-    Embed.add_field(name="Error Message:", value=f'__**{error}**__', inline=False)
-    Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-    await ctx.channel.send(embed=Embed)
-    await Channel.send(embed=Embed)
-    pass
+#@Client.event
+#async def on_command_error(ctx, error):
+#    today = date.today()
+#    now = datetime.now()
+#    current_time = now.strftime("%H:%M:%S")
+#    current_Date = today.strftime("%B %d, %Y")
+#    Channel = Client.get_channel(941411413468016760)
+#    Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
+#    Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar.url)
+#    Embed.set_thumbnail(url=ctx.author.avatar.url)
+#    Embed.add_field(name="Error Message:", value=f'__**{error}**__', inline=False)
+#    Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+#    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+#    await ctx.channel.send(embed=Embed)
+#    await Channel.send(embed=Embed)
+#    pass
 
 async def RoleChecker(ctx, User):
 
@@ -943,13 +943,13 @@ async def _Stats(ctx):
     Proc = Process()
     with Proc.oneshot():
         cpu_Time = timedelta(seconds=(cpu := Proc.cpu_times().system))
-        uptime = timedelta(seconds=time()-Proc.create_time())
+        uptime = timedelta(seconds=time.time()-Proc.create_time())
         MemoryTotal = virtual_memory().total / (1024**3)
         MemoryOf = Proc.memory_percent()
         Memory_Usage = MemoryTotal * (MemoryOf / 100)
-    Start_Response = time()
+    Start_Response = time.time()
     message = await ctx.send("Waiting for a response")
-    end = time()
+    end = time.time()
     StatsE = discord.Embed(title="**Stats System**")
     StatsE.add_field(name='**Ping: **', value=f'{Client.latency*1000:,.0f} ms', inline=False)
     StatsE.add_field(name='**Response Time: **', value=f'{(end-Start_Response)*1000:,.0f} ms', inline=False)
@@ -961,6 +961,172 @@ async def _Stats(ctx):
     StatsE.add_field(name='**Discord Version: **', value=f'{discord_version}', inline=False)
     StatsE.add_field(name='**Members: **', value=f'{ctx.guild.member_count:,}', inline=False)
     await message.edit(embed=StatsE)
+
+
+TypeTicket = "None"
+
+@Client.command(aliases = ['Ticket', 'Report'])
+async def _Ticket(ctx):
+    global TypeTicket
+    Channel2 = Client.get_channel(942443398785286204)
+    Today = date.today()
+    Now = datetime.now()
+    current_time = Now.strftime("%H:%M:%S")
+    current_Date = Today.strftime("%B %d, %Y")
+    Text = None
+    Selected_Code = "SELECT Ticket FROM Ticket_Logs"
+    Cursor.execute(Selected_Code)
+    records = Cursor.fetchall()
+    Number = 0
+    for record in records:
+        Number = Number + 1
+    Number = Number + 1
+    Code = random.randint(0,999999999999999999)
+    class Button(discord.ui.View):
+        @discord.ui.button(label='Claim', style=discord.ButtonStyle.green)
+        async def Claim_Button(self, Claim_Button: discord.ui.Button, interaction: discord.Interaction):        
+            CurrentType = "Claim"
+            Claimed_Embed = discord.Embed(title=f"Ticket Claimed by {interaction.user}", description=f'Ticket Type: {TypeTicket}', color=0xe67e22)
+            Claimed_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            Claimed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+            Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+            Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
+            Claimed_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
+            Claimed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            await interaction.response.edit_message(embed=Claimed_Embed,view=self)
+        @discord.ui.button(label='Edit', style=discord.ButtonStyle.gray)
+        async def Edit_Button(self, Edit_Button: discord.ui.Button, interaction: discord.Interaction):   
+            await Channel2.send('WIP')     
+            await interaction.message.edit(view=self)
+        @discord.ui.button(label='Close', style=discord.ButtonStyle.red)
+        async def Close_Button(self, Close_Button: discord.ui.Button, interaction: discord.Interaction):  
+            CurrentType = "Close"
+            Closed_Embed = discord.Embed(title=f"Ticket Closed by {interaction.user}", description=f'Ticket Type: {TypeTicket}', color=0xe74c3c)
+            Closed_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            Closed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+            Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+            Closed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
+            Closed_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
+            Closed_Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Closed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            await interaction.message.edit(embed=Closed_Embed,view=self)
+    
+    class Tickets(discord.ui.View):
+        @discord.ui.button(label='Feedback', style=discord.ButtonStyle.green)
+        async def Feedback(self, Feedback: discord.ui.Button, interaction: discord.Interaction):   
+            Text = None
+            global TypeTicket
+            TypeTicket = "Feedback"
+            Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeTicket}', color=0x546e7a)
+            Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+            Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+            Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
+            Final_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
+            Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
+            view2 = Button()
+            await Msg.delete()
+            await ctx.author.send(embed=Final_Embed)
+            Main3 = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
+            database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
+            Database.commit()
+            await interaction.message.edit(view=self)
+        @discord.ui.button(label='Bug Report', style=discord.ButtonStyle.green)
+        async def BugReport(self, BugReport: discord.ui.Button, interaction: discord.Interaction):      
+            global TypeTicket
+            TypeTicket = "Bug Report"
+            Text = None
+            Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeTicket}', color=0x546e7a)
+            Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+            Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+            Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
+            Final_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
+            Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
+            view2 = Button()
+            await ctx.author.send(embed=Final_Embed)
+            Main = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
+            database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
+            Database.commit()
+            await Msg.delete()
+            await interaction.message.edit(view=self)
+        @discord.ui.button(label='User Report', style=discord.ButtonStyle.green)
+        async def UserReport(self, UserReport: discord.ui.Button, interaction: discord.Interaction):    
+            global TypeTicket 
+            TypeTicket = "User Report"
+            Text = None
+            Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeTicket}', color=0x546e7a)
+            Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+            Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+            Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
+            Final_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
+            Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
+            view2 = Button()
+            Main = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
+            database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
+            Database.commit()
+            await Msg.delete()
+            await ctx.author.send(embed=Final_Embed)
+            await interaction.message.edit(view=self)
+        @discord.ui.button(label='Staff Report', style=discord.ButtonStyle.red)
+        async def StaffReport(self, StaffReport: discord.ui.Button, interaction: discord.Interaction):     
+            global TypeTicket
+            TypeTicket = "Staff Report" 
+            Text = None
+            Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeTicket}', color=0x546e7a)
+            Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
+            Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+            Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
+            Final_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
+            Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
+            Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
+            view2 = Button()
+            Main = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
+            database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
+            Database.commit()
+            await Msg.delete()
+            await ctx.author.send(embed=Final_Embed)
+            await interaction.message.edit(view=self)
+       
+        def __init__(self, timeout):
+            super().__init__(timeout=timeout)
+            self.response = None 
+
+        async def on_timeout(self):
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self) 
+    await ctx.send('Further information will be handled in DMs')
+    Main = discord.Embed(title="**Ticket System**", description=f"Please reply with your ticket. Please provide **images/videos** (Links only, attachments will not work) to support your ticket.", color=0xe67e22)
+    Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+    Main.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar.url)
+    Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+    await ctx.author.send(embed=Main)
+    Report = await Client.wait_for('message', check=lambda message: message.author == ctx.author)
+
+    if isinstance(Report.channel, discord.channel.TextChannel):
+        Cancelled = discord.Embed(title="**Ticket System**", description=f"Ticket cancelled, please recreate your ticket and reply in Direct Messages", color=0xe74c3c)
+        Cancelled.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+        Cancelled.set_footer(text=f'Ticket by {ctx.author}.', icon_url=ctx.author.avatar.url)
+        Cancelled.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+        Cancelled.set_thumbnail(url=ctx.author.avatar.url)
+        await ctx.author.send(embed=Cancelled)
+    elif isinstance(Report.channel, discord.channel.DMChannel):
+        Type = discord.Embed(title="Ticket Type", description='Please select the ticket type you want to make.', color=0x546e7a)
+        Type.add_field(name='Please provide `Full Report`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
+        Type.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+        Type.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
+        Type.set_thumbnail(url=ctx.author.avatar.url)
+        Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+        view = Tickets(timeout=20)
+        Msg = view.message = await ctx.author.send('Preview!',embed=Type, view=view)
+
 
 if __name__ == "__main__": 
     MyBot()

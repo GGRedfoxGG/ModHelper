@@ -34,17 +34,26 @@ from typing import Literal
 import slash_util
 
 
-class Alert(slash_util.Cog):
+class MyBot(slash_util.Cog):
     def __init__(self, bot: slash_util.Bot):
         self.bot = bot
         super().__init__(bot)
 
-    @slash_util.message_command(guild_id=900845173989339186)
-    async def Alert(self, ctx: slash_util.Context, message: discord.Message): 
-        await ctx.send(message)
+    #@slash_util.message_command(guild_id=900845173989339186)
+    #async def Alert(self, ctx: slash_util.Context, message: discord.Message): 
+    #    await ctx.send(message)
+
+    @slash_util.message_command(name="Moderator Call")  # sample command for message context menus
+    async def ModeratorCall(self, ctx: slash_util.Context, message: discord.Message):  # these commands may only have a single Message parameter
+        await ctx.send(f'Test')
+    
+    @slash_util.slash_command()  # sample slash command
+    async def slash(self, ctx: slash_util.Context, number: int):
+        await ctx.send(f"You selected #{number}!", ephemeral=True)
+    
 
 
 
 
 def setup(bot):
-    bot.add_cog(Alert(bot))
+    bot.add_cog(MyBot(bot))
