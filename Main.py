@@ -1,5 +1,6 @@
 from logging import fatal
 from platform import python_version
+from turtle import color
 from discord import Embed, __version__ as discord_version
 from psutil import Process, virtual_memory
 import datetime
@@ -134,22 +135,22 @@ async def on_member_join(Member):
     database.execute("INSERT INTO Users (UserID, Time) VALUES (?, ?)", (Member.id, Time))
     Database.commit()
 
-#@Client.event
-#async def on_command_error(ctx, error):
-#    today = date.today()
-#    now = datetime.now()
-#    current_time = now.strftime("%H:%M:%S")
-#    current_Date = today.strftime("%B %d, %Y")
-#    Channel = Client.get_channel(941411413468016760)
-#    Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
-#    Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar.url)
-#    Embed.set_thumbnail(url=ctx.author.avatar.url)
-#    Embed.add_field(name="Error Message:", value=f'__**{error}**__', inline=False)
-#    Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-#    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-#    await ctx.channel.send(embed=Embed)
-#    await Channel.send(embed=Embed)
-#    pass
+@Client.event
+async def on_command_error(ctx, error):
+    today = date.today()
+    now = datetime.now()
+    current_time = now.strftime("%H:%M:%S")
+    current_Date = today.strftime("%B %d, %Y")
+    Channel = Client.get_channel(941411413468016760)
+    Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
+    Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar.url)
+    Embed.set_thumbnail(url=ctx.author.avatar.url)
+    Embed.add_field(name="Error Message:", value=f'__**{error}**__', inline=False)
+    Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+    await ctx.channel.send(embed=Embed)
+    await Channel.send(embed=Embed)
+    pass
 
 async def RoleChecker(ctx, User):
 
@@ -940,6 +941,7 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
 
 @Client.command(aliases = ['Stats'])
 async def _Stats(ctx):
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.guild, None, ctx.channel)
     Proc = Process()
     with Proc.oneshot():
         cpu_Time = timedelta(seconds=(cpu := Proc.cpu_times().system))
@@ -967,6 +969,7 @@ TypeTicket = "None"
 
 @Client.command(aliases = ['Ticket', 'Report'])
 async def _Ticket(ctx):
+    
     global TypeTicket
     global Text 
     Text = None
@@ -999,6 +1002,7 @@ async def _Ticket(ctx):
         @discord.ui.button(label='Edit', style=discord.ButtonStyle.gray)
         async def Edit_Button(self, Edit_Button: discord.ui.Button, interaction: discord.Interaction):   
             await interaction.user.send("Please reply to this text with your note!")
+            await interaction.message.edit(view=self)
             Note = await Client.wait_for('message', check=lambda message: message.author == interaction.user)
             if isinstance(Note.channel, discord.channel.TextChannel):
                 Cancelled = discord.Embed(title="**Ticket System**", description=f"Note cancelled, please recreate your ticket and reply in Direct Messages", color=0xe74c3c)
@@ -1018,8 +1022,8 @@ async def _Ticket(ctx):
                 Claimed_Embed.set_thumbnail(url=ctx.author.avatar.url)
                 Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 await interaction.user.send('Everything was saved successfully!')
-
             await interaction.message.edit(embed=Claimed_Embed, view=self)
+
         @discord.ui.button(label='Close', style=discord.ButtonStyle.red)
         async def Close_Button(self, Close_Button: discord.ui.Button, interaction: discord.Interaction):  
             CurrentType = "Close"
@@ -1139,6 +1143,7 @@ async def _Ticket(ctx):
         Cancelled.set_thumbnail(url=ctx.author.avatar.url)
         await ctx.author.send(embed=Cancelled)
     elif isinstance(Report.channel, discord.channel.DMChannel):
+        await Logging(ctx, ctx.message.content,ctx.author, ctx.author, f"Report: {Report.content}", ctx.channel)
         Type = discord.Embed(title="Ticket Type", description='Please select the ticket type you want to make.', color=0x546e7a)
         Type.add_field(name='Please provide `Full Report`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
         Type.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
@@ -1148,7 +1153,307 @@ async def _Ticket(ctx):
         view = Tickets(timeout=20)
         Msg = view.message = await ctx.author.send('Preview!',embed=Type, view=view)
 
+@Client.command(aliases = ['CreateRole'])
+async def _CreateRole(ctx,*,Name):
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.guild, f"Role name {Name}", ctx.channel)
+    await RoleChecker(ctx, ctx.author)
+    result_from_errorrank = await RoleChecker(ctx, ctx.author)
+    In_Group = result_from_errorrank
+    if In_Group == True or ctx.author.guild_permissions.administrator:
+        Type = discord.Embed(title="Role System", description=f'Role have been created with name: {Name}', color=0x546e7a)
+        await Logging(ctx, ctx.message.content,ctx.author, ctx.guild, f"Name: {Name}. Created by: {ctx.author}", ctx.channel)
+        await ctx.guild.create_role(name=Name)
+        await ctx.send(embed=Type)
+            
+@Client.command(aliases = ['Rule', 'Rules'], pass_context=True)
+async def _Rule(ctx):
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
+    Main2 = discord.Embed(title="**Rules**", description=f"All further information was directed into your Direct Messages/DMs.", color=0x7289da)
+    Main2.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+    await ctx.send(embed=Main2)
 
+    Main = discord.Embed(title="**__Rules__**", description=f"All rules must be followed at all times. Not doing so will result in any type of punishments.", color = 0x7289da)
+    Main.add_field(name='Rules: ', value=f'''
+1. Do not constantly troll, harass, or mock other users: - Text Channels. - Voice Channels. - DMs.
+
+2. Don't ruin chats: - Flood. - Spam.
+​
+3. No NSFW (Porn, Gore, Fan Fictions, More) Content: - Text Channel. - Voice Channel. - DM'd. - Suggestive.
+
+4. No Ear Rape: - Voice Chats. - Videos.
+
+5. Do not DM or post any advertisements (or Discord Invite Links) to any of our users: - In Discord. - In DMs (Not requested by user). - Scam links.
+
+6. Use channels for their intended purpose: - Format. - (Rule for specific channel in Pins)
+
+7. Any form of discriminatory or offensive behavior is not tolerated: - Text Channels. - Voice Channels. - DMs. - Images. - Music.
+
+''', inline=False)
+    Main2 = discord.Embed(color = 0x7289da)
+    Main2.add_field(name='Rules: ', value=f'''
+8. Do not repeatedly mention anyone or role without a purpose: - User requested to stop. - Ghost Pinging.
+
+9. Listen to Staff - Lying to Staff. - Refusal to Follow Directions.
+
+10. Don't impersonate users: - Player. - Staff. - Bots.
+
+11. Don't Abuse Profile Pictures, Statuses, or Usernames: - Offensive. - NSFW (Rule 3). - Advertisements (Rule 5).
+
+12. Don't Bypass The Filter: - Text Channel. - Voice Channel. - Images / Videos.
+
+13. Follow Discord TOS: - < 13 (And Or Not Cooperating With Staff When Trying To Find This). - Ban Evasion. - Doxing. - Posting pirated content. - More.
+​
+14. No Malicious/Harmful Links: - Malware. - IP Grabber. - Exploits. - Phishing Sites. - Crashes Discord. - Epileptic
+
+15. All commands used should be used in its right [channels](https://discord.com/channels/900845173989339186/900860343646027776).
+''', inline=False)
+    Main2.set_image(url="https://images-ext-2.discordapp.net/external/GSemRO9er4G4QZ3RPQz6UMFJlMaLRlKXXlkmh3i4kaM/https/media.discordapp.net/attachments/901010647976923166/916975822055813181/Rules_text.png")
+    await ctx.author.send(embed=Main)
+    await ctx.author.send(embed=Main2)
+
+
+
+@Client.command(aliases = ['Help', 'Cmds', 'Commands'],  pass_context=True)
+async def _Help(ctx):
+    global Current_Page
+    Current_Page = 1
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
+
+    class Button(discord.ui.View):
+        @discord.ui.button(label='<', style=discord.ButtonStyle.green)
+        async def Previous(self, Previous: discord.ui.Button, interaction: discord.Interaction):   
+            global Current_Page
+            if Current_Page == 1:
+                Current_Page = 5
+                Misc = discord.Embed(title="**Help System**", description=f"Page information: __**Misc**__", color=0x7289da)
+                Misc.set_thumbnail(url=ctx.author.avatar.url)
+                Misc.add_field(name='Misc: ', value='''
+
+`,Stats`
+            
+            ''', inline=False)
+                Misc.set_footer(text=f' Page 5/5', icon_url=ctx.author.avatar.url)
+                Misc.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                await interaction.response.edit_message(embed=Misc,view=self)
+            elif Current_Page == 5:
+                Current_Page = 4
+                Fun = discord.Embed(title="**Help System**", description=f"Page information: __**Fun**__", color=0x7289da)
+                Fun.set_thumbnail(url=ctx.author.avatar.url)
+                Fun.add_field(name='Fun: ', value='''
+`None Yet`         
+            ''', inline=False)
+                Fun.set_footer(text=f' Page 4/5', icon_url=ctx.author.avatar.url)
+                Fun.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                await interaction.response.edit_message(embed=Fun,view=self)
+            elif Current_Page == 4:
+                Current_Page = 3
+                Information = discord.Embed(title="**Help System**", description=f"Page information: __**Information**__", color=0x7289da)
+                Information.set_thumbnail(url=ctx.author.avatar.url)
+                Information.add_field(name='Information: ', value='''
+
+`,Announce [Channel] [Title] [Announcement]`
+
+`,Ticket`
+
+`,ServerInfo`
+
+`,User [User]`
+
+`,Rules`
+
+`,Help`
+
+`,Version`
+            
+            ''', inline=False)
+                Information.set_footer(text=f' Page 3/5', icon_url=ctx.author.avatar.url)
+                Information.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                await interaction.response.edit_message(embed=Information,view=self)
+            elif Current_Page == 3:
+                Current_Page = 2
+                Moderation = discord.Embed(title="**Help System**", description=f"Page information: __**Moderation**__", color=0x7289da)
+                Moderation.set_thumbnail(url=ctx.author.avatar.url)
+                Moderation.add_field(name='Moderation: ', value='''
+
+`,Ban [User] [Reason] [Evidence]`
+
+`,Unban [User] [Reason] [Evidence]`
+
+`,SoftBan [User] [Reason]` 
+
+`,Nick [User] [Name]`
+
+`,Kick [User] [Reason] [Evidence]`
+
+`,Purge [Amount]`
+
+`,Slowmode [Channel] [Amount]`
+
+`,Warn [User] [Reason and Evidence]`
+
+`,Warnings [User]`
+
+`,ClearWarnings [User] [Reason]` 
+
+`,Case [Case ID]`
+
+`,Defean [User] [Reason]`
+
+`,Undefean [User] [Reason]` 
+            
+`,Mute [User] [Amount/Perm] [Reason]` (WIP)
+
+`,Unmute [User]` (WIP)
+
+`,Lock [Channel] [Time] [Reason]`
+
+`,Alert [Channel Location] [Message ID]`
+            
+            ''', inline=False)
+                Moderation.set_footer(text=f' Page 2/5', icon_url=ctx.author.avatar.url)
+                Moderation.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                await interaction.response.edit_message(embed=Moderation,view=self)
+            elif Current_Page == 2:
+                Current_Page = 1
+                await interaction.response.edit_message(embed=Home,view=self)
+
+        @discord.ui.button(label='>', style=discord.ButtonStyle.green)
+        async def Next(self, Next: discord.ui.Button, interaction: discord.Interaction):   
+            global Current_Page
+            if Current_Page == 1:
+                Current_Page = Current_Page + 1
+                Moderation = discord.Embed(title="**Help System**", description=f"Page information: __**Moderation**__", color=0x7289da)
+                Moderation.set_thumbnail(url=ctx.author.avatar.url)
+                Moderation.add_field(name='Moderation: ', value='''
+
+`,Ban [User] [Reason] [Evidence]`
+
+`,Unban [User] [Reason] [Evidence]`
+
+`,SoftBan [User] [Reason]` 
+
+`,Nick [User] [Name]`
+
+`,Kick [User] [Reason] [Evidence]`
+
+`,Purge [Amount]`
+
+`,Slowmode [Channel] [Amount]`
+
+`,Warn [User] [Reason and Evidence]`
+
+`,Warnings [User]`
+
+`,ClearWarnings [User] [Reason]` 
+
+`,Case [Case ID]`
+
+`,Defean [User] [Reason]`
+
+`,Undefean [User] [Reason]` 
+            
+`,Mute [User] [Amount/Perm] [Reason]` (WIP)
+
+`,Unmute [User]` (WIP)
+
+`,Lock [Channel] [Time] [Reason]`
+
+`,Alert [Channel Location] [Message ID]`
+            
+            ''', inline=False)
+                Moderation.set_footer(text=f' Page 2/5', icon_url=ctx.author.avatar.url)
+                Moderation.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                await interaction.response.edit_message(embed=Moderation,view=self)
+            elif Current_Page == 2:
+                Current_Page = Current_Page + 1
+                Information = discord.Embed(title="**Help System**", description=f"Page information: __**Information**__", color=0x7289da)
+                Information.set_thumbnail(url=ctx.author.avatar.url)
+                Information.add_field(name='Information: ', value='''
+
+`,Announce [Channel] [Title] [Announcement]`
+
+`,Ticket`
+
+`,ServerInfo`
+
+`,User [User]`
+
+`,Stats`
+
+`,Rules`
+
+`,Help`
+
+`,Version`
+            
+            ''', inline=False)
+                Information.set_footer(text=f' Page 3/5', icon_url=ctx.author.avatar.url)
+                Information.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                await interaction.response.edit_message(embed=Information,view=self)
+            elif Current_Page == 3:
+                Current_Page = Current_Page + 1
+                Fun = discord.Embed(title="**Help System**", description=f"Page information: __**Fun**__", color=0x7289da)
+                Fun.set_thumbnail(url=ctx.author.avatar.url)
+                Fun.add_field(name='Fun: ', value='''
+`,Rps`       
+            ''', inline=False)
+                Fun.set_footer(text=f' Page 4/5', icon_url=ctx.author.avatar.url)
+                Fun.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                await interaction.response.edit_message(embed=Fun,view=self)
+            elif Current_Page == 4:
+                Current_Page = Current_Page + 1
+                Misc = discord.Embed(title="**Help System**", description=f"Page information: __**Misc**__", color=0x7289da)
+                Misc.set_thumbnail(url=ctx.author.avatar.url)
+                Misc.add_field(name='Misc: ', value='''
+`,Random`
+            
+            ''', inline=False)
+                Misc.set_footer(text=f' Page 5/5', icon_url=ctx.author.avatar.url)
+                Misc.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+                await interaction.response.edit_message(embed=Misc,view=self)
+            elif Current_Page == 5:
+                Current_Page = 1
+                await interaction.response.edit_message(embed=Home,view=self)
+
+
+        def __init__(self, timeout):
+            super().__init__(timeout=timeout)
+            self.response = None 
+
+        async def on_timeout(self):
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self) 
+    Main = discord.Embed(title="**Help System**", description=f"All further information is now handled in Direct Messages.", color=0x7289da)
+    Main.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+    Home = discord.Embed(title="**Help System**", description=f"Page information: __**Home**__", color=0x7289da)
+    Home.add_field(name='You will find here: ', value='__**Moderation and Adminstration, Information, Fun, and Misc.**__', inline=False)
+    Home.set_thumbnail(url=ctx.author.avatar.url)
+    Home.set_footer(text=f' Page 1/5', icon_url=ctx.author.avatar.url)
+    Home.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+    await ctx.send(embed=Main)
+    view = Button(timeout=180)
+    Msg = view.message = await ctx.author.send(embed=Home, view=view)
+
+@Client.command(aliases = ['Rps'],  pass_context=True)
+async def _RPS(ctx):
+    Number = random.randint(1,3)
+    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
+    if Number == 1:
+        await ctx.send('Rock')
+    elif Number == 2:
+        await ctx.send('Paper')
+    elif Number == 3:
+        await ctx.send('Scissors')
+
+@Client.command(aliases = ['RandomNumber', 'Random'],  pass_context=True)
+async def _RandomNumber(ctx, First_Number: int, Second_Number:int):
+    if First_Number >= Second_Number:
+        await ctx.send('First number should be less than the second number, e.g: 1 to 6')
+    else:
+        Number = random.randint(First_Number,Second_Number)
+        await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F'Random number: {Number}', ctx.channel)
+        await ctx.send(Number)
 
 if __name__ == "__main__": 
     MyBot()
