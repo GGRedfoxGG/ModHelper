@@ -967,7 +967,7 @@ async def _Stats(ctx):
 
 TypeTicket = "None"
 
-@Client.command(aliases = ['Ticket', 'Report'])
+@Client.command(aliases = ['Ticket', 'Report', 'Feedback', 'Suggestion', 'Suggest'])
 async def _Ticket(ctx):
     
     global TypeTicket
@@ -989,9 +989,28 @@ async def _Ticket(ctx):
     class Button(discord.ui.View):
         @discord.ui.button(label='Claim', style=discord.ButtonStyle.green)
         async def Claim_Button(self, Claim_Button: discord.ui.Button, interaction: discord.Interaction):        
-            CurrentType = "Claim"
             Claimed_Embed = discord.Embed(title=f"Ticket Claimed by {interaction.user}", description=f'Ticket Type: {TypeTicket}', color=0xe67e22)
             Claimed_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            CurrentType = "Claim"
+            List = []
+            NumberNew = 0
+            for Attackment in Report.attachments:
+                if Report.attachments:
+                    NumberNew = NumberNew + 1
+                    List.append(Attackment.url)
+
+            if NumberNew == 0:
+                Claimed_Embed.add_field(name='Files: ', value='None', inline=False)
+            elif NumberNew == 1:
+                Claimed_Embed.add_field(name='Files: ', value=f'[File]({List[0]})', inline=False)
+            elif NumberNew == 2:
+                Claimed_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]})', inline=False)
+            elif NumberNew == 3:
+                Claimed_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]})', inline=False)
+            elif NumberNew == 4: 
+                Claimed_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]})', inline=False)
+            elif NumberNew == 5:
+                Claimed_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]}) / [File]({List[4]})', inline=False)
             Claimed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
             Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
             Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
@@ -1010,25 +1029,62 @@ async def _Ticket(ctx):
                 Cancelled.set_author(name=f'{interaction.user} ({interaction.user.id})', icon_url=interaction.user.avatar.url)
                 Cancelled.set_thumbnail(url=ctx.author.avatar.url)
                 await ctx.author.send(embed=Cancelled)
+                await interaction.message.edit(view=self)
             elif isinstance(Note.channel, discord.channel.DMChannel):
+                NoteEdit = discord.Embed(title=f"Ticket Claimed by {interaction.user}", description=f'Ticket Type: {TypeTicket}', color=0xe67e22)
+                NoteEdit.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
                 global Text
                 Text = Note.content
-                Claimed_Embed = discord.Embed(title=f"Ticket Claimed by {interaction.user}", description=f'Ticket Type: {TypeTicket}', color=0xe67e22)
-                Claimed_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
-                Claimed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
-                Claimed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-                Claimed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
-                Claimed_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
-                Claimed_Embed.set_thumbnail(url=ctx.author.avatar.url)
-                Claimed_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+                List = []
+                NumberNew = 0
+                for Attackment in Report.attachments:
+                    if Report.attachments:
+                        NumberNew = NumberNew + 1
+                        List.append(Attackment.url)
+                if NumberNew == 0:
+                    NoteEdit.add_field(name='Files: ', value='None', inline=False)
+                elif NumberNew == 1:
+                    NoteEdit.add_field(name='Files: ', value=f'[File]({List[0]})', inline=False)
+                elif NumberNew == 2:
+                    NoteEdit.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]})', inline=False)
+                elif NumberNew == 3:
+                    NoteEdit.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]})', inline=False)
+                elif NumberNew == 4: 
+                    NoteEdit.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]})', inline=False)
+                elif NumberNew == 5:
+                    NoteEdit.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]}) / [File]({List[4]})', inline=False)
+                NoteEdit.add_field(name='Report: ', value=Report.content, inline=False)
+                NoteEdit.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
+                NoteEdit.add_field(name='Note: ', value=f'{Text}', inline=False)
+                NoteEdit.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
+                NoteEdit.set_thumbnail(url=ctx.author.avatar.url)
+                NoteEdit.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 await interaction.user.send('Everything was saved successfully!')
-            await interaction.message.edit(embed=Claimed_Embed, view=self)
+            await interaction.message.edit(embed=NoteEdit, view=self)
 
         @discord.ui.button(label='Close', style=discord.ButtonStyle.red)
         async def Close_Button(self, Close_Button: discord.ui.Button, interaction: discord.Interaction):  
             CurrentType = "Close"
             Closed_Embed = discord.Embed(title=f"Ticket Closed by {interaction.user}", description=f'Ticket Type: {TypeTicket}', color=0xe74c3c)
             Closed_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            NumberNew = 0
+            List = []
+            for Attackment in Report.attachments:
+                if Report.attachments:
+                    NumberNew = NumberNew + 1
+                    List.append(Attackment.url)
+            if NumberNew == 0:
+                Closed_Embed.add_field(name='Files: ', value='None', inline=False)
+            elif NumberNew == 1:
+                Closed_Embed.add_field(name='Files: ', value=f'[File]({List[0]})', inline=False)
+            elif NumberNew == 2:
+                Closed_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]})', inline=False)
+            elif NumberNew == 3:
+                Closed_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]})', inline=False)
+            elif NumberNew == 4: 
+                Closed_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]})', inline=False)
+            elif NumberNew == 5:
+                Closed_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]}) / [File]({List[4]})', inline=False)
             Closed_Embed.add_field(name='Report: ', value=Report.content, inline=False)
             Closed_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
             Closed_Embed.add_field(name='Note: ', value=f'{Text}', inline=False)
@@ -1043,81 +1099,190 @@ async def _Ticket(ctx):
             Text = None
             global TypeTicket
             TypeTicket = "Feedback"
+            global BigSize
+            BigSize = False
+            NumberNew = 0
             Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeTicket}', color=0x546e7a)
             Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            List = []
+            for Attackment in Report.attachments:
+                if Report.attachments:
+                    NumberNew = NumberNew + 1
+                    List.append(Attackment.url)
+
+            if NumberNew == 0:
+                Final_Embed.add_field(name='Files: ', value='None', inline=False)
+            elif NumberNew == 1:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]})', inline=False)
+            elif NumberNew == 2:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]})', inline=False)
+            elif NumberNew == 3:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]})', inline=False)
+            elif NumberNew == 4: 
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]})', inline=False)
+            elif NumberNew == 5:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]}) / [File]({List[4]})', inline=False)
+            else:
+                await interaction.response.send_message('Too many Files')
+                BigSize = True
+                    
+
             Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
             Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
             Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
             Final_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
             Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
             Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
-            view2 = Button()
-            await Msg.delete()
-            await ctx.author.send(embed=Final_Embed)
-            Main3 = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
-            database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
-            Database.commit()
-            await interaction.message.edit(view=self)
+            if BigSize == False:
+                view2 = Button()
+                await Msg.delete()
+                await ctx.author.send(embed=Final_Embed)
+                database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
+                Database.commit()
+                Main3 = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
+                await interaction.message.edit(view=self)
         @discord.ui.button(label='Bug Report', style=discord.ButtonStyle.green)
         async def BugReport(self, BugReport: discord.ui.Button, interaction: discord.Interaction):      
+            Text = None
             global TypeTicket
             TypeTicket = "Bug Report"
-            Text = None
+            global BigSize
+            BigSize = False
+            NumberNew = 0
             Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeTicket}', color=0x546e7a)
             Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            List = []
+            for Attackment in Report.attachments:
+                if Report.attachments:
+                    NumberNew = NumberNew + 1
+                    List.append(Attackment.url)
+
+            if NumberNew == 0:
+                Final_Embed.add_field(name='Files: ', value='None', inline=False)
+            elif NumberNew == 1:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]})', inline=False)
+            elif NumberNew == 2:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]})', inline=False)
+            elif NumberNew == 3:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]})', inline=False)
+            elif NumberNew == 4: 
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]})', inline=False)
+            elif NumberNew == 5:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]}) / [File]({List[4]})', inline=False)
+            else:
+                await interaction.response.send_message('Too many Files')
+                BigSize = True
+                    
+
             Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
             Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
             Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
             Final_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
             Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
             Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
-            view2 = Button()
-            await ctx.author.send(embed=Final_Embed)
-            Main = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
-            database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
-            Database.commit()
-            await Msg.delete()
-            await interaction.message.edit(view=self)
+            if BigSize == False:
+                view2 = Button()
+                await Msg.delete()
+                await ctx.author.send(embed=Final_Embed)
+                database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
+                Database.commit()
+                Main3 = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
+                await interaction.message.edit(view=self)
         @discord.ui.button(label='User Report', style=discord.ButtonStyle.green)
         async def UserReport(self, UserReport: discord.ui.Button, interaction: discord.Interaction):    
-            global TypeTicket 
-            TypeTicket = "User Report"
             Text = None
+            global TypeTicket
+            TypeTicket = "User Report"
+            global BigSize
+            BigSize = False
+            NumberNew = 0
             Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeTicket}', color=0x546e7a)
             Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            List = []
+            for Attackment in Report.attachments:
+                if Report.attachments:
+                    NumberNew = NumberNew + 1
+                    List.append(Attackment.url)
+
+            if NumberNew == 0:
+                Final_Embed.add_field(name='Files: ', value='None', inline=False)
+            elif NumberNew == 1:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]})', inline=False)
+            elif NumberNew == 2:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]})', inline=False)
+            elif NumberNew == 3:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]})', inline=False)
+            elif NumberNew == 4: 
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]})', inline=False)
+            elif NumberNew == 5:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]}) / [File]({List[4]})', inline=False)
+            else:
+                await interaction.response.send_message('Too many Files')
+                BigSize = True
+                    
+
             Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
             Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
             Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
             Final_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
             Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
             Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
-            view2 = Button()
-            Main = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
-            database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
-            Database.commit()
-            await Msg.delete()
-            await ctx.author.send(embed=Final_Embed)
-            await interaction.message.edit(view=self)
+            if BigSize == False:
+                view2 = Button()
+                await Msg.delete()
+                await ctx.author.send(embed=Final_Embed)
+                database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
+                Database.commit()
+                Main3 = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
+                await interaction.message.edit(view=self)
         @discord.ui.button(label='Staff Report', style=discord.ButtonStyle.red)
         async def StaffReport(self, StaffReport: discord.ui.Button, interaction: discord.Interaction):     
-            global TypeTicket
-            TypeTicket = "Staff Report" 
             Text = None
+            global TypeTicket
+            TypeTicket = "Staff Report"
+            global BigSize
+            BigSize = False
+            NumberNew = 0
             Final_Embed = discord.Embed(title="Ticket System", description=f'Ticket Type: {TypeTicket}', color=0x546e7a)
             Final_Embed.add_field(name='Ticket Code: ', value=f'#{Number}/{Code}', inline=False)
+            List = []
+            for Attackment in Report.attachments:
+                if Report.attachments:
+                    NumberNew = NumberNew + 1
+                    List.append(Attackment.url)
+
+            if NumberNew == 0:
+                Final_Embed.add_field(name='Files: ', value='None', inline=False)
+            elif NumberNew == 1:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]})', inline=False)
+            elif NumberNew == 2:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]})', inline=False)
+            elif NumberNew == 3:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]})', inline=False)
+            elif NumberNew == 4: 
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]})', inline=False)
+            elif NumberNew == 5:
+                Final_Embed.add_field(name='Files: ', value=f'[File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]}) / [File]({List[4]})', inline=False)
+            else:
+                await interaction.response.send_message('Too many Files')
+                BigSize = True
+                    
+
             Final_Embed.add_field(name='Report: ', value=Report.content, inline=False)
             Final_Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
             Final_Embed.add_field(name='Note: ', value=f'None', inline=False)
             Final_Embed.set_author(name=f'Ticket opened by {ctx.author}', icon_url=ctx.author.avatar.url)
             Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
             Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
-            view2 = Button()
-            Main = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
-            database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
-            Database.commit()
-            await Msg.delete()
-            await ctx.author.send(embed=Final_Embed)
-            await interaction.message.edit(view=self)
+            if BigSize == False:
+                view2 = Button()
+                await Msg.delete()
+                await ctx.author.send(embed=Final_Embed)
+                database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
+                Database.commit()
+                Main3 = view2.message = await Channel2.send(embed=Final_Embed, view=view2)
+                await interaction.message.edit(view=self)
+
        
         def __init__(self, timeout):
             super().__init__(timeout=timeout)
@@ -1128,9 +1293,9 @@ async def _Ticket(ctx):
                 child.disabled = True
             await self.message.edit(view=self) 
     await ctx.send('Further information will be handled in DMs')
-    Main = discord.Embed(title="**Ticket System**", description=f"Please reply with your ticket. Please provide **images/videos** (Links only, attachments will not work) to support your ticket.", color=0xe67e22)
+    Main = discord.Embed(title="**Ticket System**", description=f"Please reply with your ticket. Please provide **images/videos** to support your ticket.", color=0xe67e22)
     Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Main.set_footer(text=f'Appeal by {ctx.author}.', icon_url=ctx.author.avatar.url)
+    Main.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
     Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
     await ctx.author.send(embed=Main)
     Report = await Client.wait_for('message', check=lambda message: message.author == ctx.author)
@@ -1143,6 +1308,7 @@ async def _Ticket(ctx):
         Cancelled.set_thumbnail(url=ctx.author.avatar.url)
         await ctx.author.send(embed=Cancelled)
     elif isinstance(Report.channel, discord.channel.DMChannel):
+            
         await Logging(ctx, ctx.message.content,ctx.author, ctx.author, f"Report: {Report.content}", ctx.channel)
         Type = discord.Embed(title="Ticket Type", description='Please select the ticket type you want to make.', color=0x546e7a)
         Type.add_field(name='Please provide `Full Report`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
