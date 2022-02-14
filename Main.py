@@ -117,8 +117,9 @@ async def on_ready():
         print(User)
         await guild.ban(User)
     for Member in guild.members:
-        database.execute("INSERT INTO Users (UserID, Time) VALUES (?, ?)", (Member.id, "N/A"))
-        Database.commit()
+        return
+        #database.execute("INSERT INTO Users (UserID, Time) VALUES (?, ?)", (Member.id, "N/A"))
+        #Database.commit()
     print(f'Logged in')
     print('------------------------------')
 
@@ -955,11 +956,9 @@ async def _Stats(ctx):
     StatsE = discord.Embed(title="**Stats System**")
     StatsE.add_field(name='**Ping: **', value=f'{Client.latency*1000:,.0f} ms', inline=False)
     StatsE.add_field(name='**Response Time: **', value=f'{(end-Start_Response)*1000:,.0f} ms', inline=False)
-    StatsE.add_field(name='**TimeStamp: **', value=f'{datetime.utcnow()}', inline=False)
     StatsE.add_field(name='**Uptime: **', value=f'{uptime}', inline=False)
     StatsE.add_field(name='**CPU Time: **', value=f'{cpu_Time}', inline=False)
     StatsE.add_field(name='**Memory: **', value=f'{Memory_Usage:,.2f} / {MemoryTotal:,.0f} / {MemoryOf}%', inline=False)
-    StatsE.add_field(name='**Python Version: **', value=f'{python_version}', inline=False)
     StatsE.add_field(name='**Discord Version: **', value=f'{discord_version}', inline=False)
     StatsE.add_field(name='**Members: **', value=f'{ctx.guild.member_count:,}', inline=False)
     await message.edit(embed=StatsE)
@@ -1134,7 +1133,6 @@ async def _Ticket(ctx):
             Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
             Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
             if BigSize == False:
-                view2 = Button()
                 await Msg.delete()
                 await ctx.author.send(embed=Final_Embed)
                 database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
@@ -1181,7 +1179,6 @@ async def _Ticket(ctx):
             Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
             Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
             if BigSize == False:
-                view2 = Button()
                 await Msg.delete()
                 await ctx.author.send(embed=Final_Embed)
                 database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
@@ -1228,7 +1225,6 @@ async def _Ticket(ctx):
             Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
             Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
             if BigSize == False:
-                view2 = Button()
                 await Msg.delete()
                 await ctx.author.send(embed=Final_Embed)
                 database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
@@ -1275,7 +1271,6 @@ async def _Ticket(ctx):
             Final_Embed.set_thumbnail(url=ctx.author.avatar.url)
             Final_Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)     
             if BigSize == False:
-                view2 = Button()
                 await Msg.delete()
                 await ctx.author.send(embed=Final_Embed)
                 database.execute("INSERT INTO Ticket_logs (Ticket) VALUES (?)", (Text,))
@@ -1308,7 +1303,6 @@ async def _Ticket(ctx):
         Cancelled.set_thumbnail(url=ctx.author.avatar.url)
         await ctx.author.send(embed=Cancelled)
     elif isinstance(Report.channel, discord.channel.DMChannel):
-            
         await Logging(ctx, ctx.message.content,ctx.author, ctx.author, f"Report: {Report.content}", ctx.channel)
         Type = discord.Embed(title="Ticket Type", description='Please select the ticket type you want to make.', color=0x546e7a)
         Type.add_field(name='Please provide `Full Report`, `Evidence`,`User id`', value='Valid User Id: 565558626048016395/<@565558626048016395>', inline=False)
@@ -1316,6 +1310,7 @@ async def _Ticket(ctx):
         Type.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
         Type.set_thumbnail(url=ctx.author.avatar.url)
         Type.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
+        view2 = Button(timeout=15780000)
         view = Tickets(timeout=20)
         Msg = view.message = await ctx.author.send('Preview!',embed=Type, view=view)
 
@@ -1396,6 +1391,8 @@ async def _Help(ctx):
                 Misc.add_field(name='Misc: ', value='''
 
 `,Stats`
+
+`,Random`
             
             ''', inline=False)
                 Misc.set_footer(text=f' Page 5/5', icon_url=ctx.author.avatar.url)
@@ -1406,7 +1403,7 @@ async def _Help(ctx):
                 Fun = discord.Embed(title="**Help System**", description=f"Page information: __**Fun**__", color=0x7289da)
                 Fun.set_thumbnail(url=ctx.author.avatar.url)
                 Fun.add_field(name='Fun: ', value='''
-`None Yet`         
+`Rps`         
             ''', inline=False)
                 Fun.set_footer(text=f' Page 4/5', icon_url=ctx.author.avatar.url)
                 Fun.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
@@ -1544,8 +1541,6 @@ async def _Help(ctx):
 
 `,User [User]`
 
-`,Stats`
-
 `,Rules`
 
 `,Help`
@@ -1572,6 +1567,8 @@ async def _Help(ctx):
                 Misc.set_thumbnail(url=ctx.author.avatar.url)
                 Misc.add_field(name='Misc: ', value='''
 `,Random`
+
+`,Stats`
             
             ''', inline=False)
                 Misc.set_footer(text=f' Page 5/5', icon_url=ctx.author.avatar.url)
@@ -1625,6 +1622,3 @@ if __name__ == "__main__":
     MyBot()
 
 Client.run('ODkxNjcyNzE0ODk5NzYzMjIw.YVBw7Q.7E4la6ihkgAtWQMz9SLfDysEyd4') 
-# ODkxNjcyNzE0ODk5NzYzMjIw.YVBw7Q.PJ_8PKH3u4vgwm6uZvixO4bKZCQ
-
-# OTA0NDUwODE0NjE2MTQxODI1.YX7tdg.f9kR32IFT7-AY9q2bm3qnkhEQt8
