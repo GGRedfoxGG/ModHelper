@@ -96,8 +96,8 @@ class Bot(commands.Bot):
         super().__init__(command_prefix=commands.when_mentioned_or(','))
 
     async def on_ready(self):
-        await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = " The Sith Order"))
-        guild = Client.get_guild(900845173989339186)
+        await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = "The darkness in ™F community"))
+        guild = Client.get_guild(734738368205684796)
         for black in Blacklisted:
             User = await Client.fetch_user(black)
             print(User)
@@ -110,16 +110,12 @@ class Bot(commands.Bot):
 
 @Client.event
 async def on_ready():
-    await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = " The Sith Order"))
-    guild = Client.get_guild(900845173989339186)
+    await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = "TMF's Community"))
+    guild = Client.get_guild(734738368205684796)
     for black in Blacklisted:
         User = await Client.fetch_user(black)
         print(User)
         await guild.ban(User)
-    for Member in guild.members:
-        return
-        #database.execute("INSERT INTO Users (UserID, Time) VALUES (?, ?)", (Member.id, "N/A"))
-        #Database.commit()
     print(f'Logged in')
     print('------------------------------')
 
@@ -142,7 +138,7 @@ async def on_command_error(ctx, error):
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
-    Channel = Client.get_channel(941411413468016760)
+    Channel = Client.get_channel(942867913373798480)
     Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
     Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar.url)
     Embed.set_thumbnail(url=ctx.author.avatar.url)
@@ -155,22 +151,22 @@ async def on_command_error(ctx, error):
 
 async def RoleChecker(ctx, User):
 
-    guild = Client.get_guild(900845173989339186)
+    guild = Client.get_guild(734738368205684796)
     role1 = [
-        discord.utils.get(guild.roles, id=909918257312595968), 
-        discord.utils.get(guild.roles, id=901486515249635388),
-        discord.utils.get(guild.roles, id=905125340622508112),
-        discord.utils.get(guild.roles, id=906498226931245056),
-        discord.utils.get(guild.roles, id=901486515975229480),
-        discord.utils.get(guild.roles, id=901486518915448902),
-        discord.utils.get(guild.roles, id=901486518080786474),
-        discord.utils.get(guild.roles, id=901486519552995348),
-        discord.utils.get(guild.roles, id=901486517380345926),
+        discord.utils.get(guild.roles, id=734746065500241980), 
+        discord.utils.get(guild.roles, id=931347974565548093),
+        discord.utils.get(guild.roles, id=769150136395366400),
+        discord.utils.get(guild.roles, id=739060734998216726),
+        discord.utils.get(guild.roles, id=739095283165691924),
+        discord.utils.get(guild.roles, id=735230480986669117),
+        discord.utils.get(guild.roles, id=832687756559515699),
+        discord.utils.get(guild.roles, id=909151953097981979),
+        discord.utils.get(guild.roles, id=913556485596905472),
     ]
     for Main in role1:
         for member in guild.members:
             if User == member:
-                for role in member.roles: #or member.id =="565558626048016395":
+                for role in member.roles or member.id =="565558626048016395":
                     if role == Main:
                         return True
             
@@ -185,7 +181,7 @@ async def MissingPermission(ctx, Author):
 
 
 async def Logging(ctx, cmd, author: None, effected_member: None, Reason: None, Channelused: None):
-    Channel = Client.get_channel(941411399597445252)
+    Channel = Client.get_channel(942867131089948672)
     today = date.today()
     now = datetime.now()
 
@@ -230,7 +226,7 @@ async def _announce(ctx, Channel: discord.TextChannel, Title, *,Annoncement):
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
     print(In_Group)
-    if In_Group == True or ctx.author.guild_permissions.administrator:
+    if ctx.author.guild_permissions.administrator or In_Group == True:
         await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F"Announced in <#{Channel.id}>: __{Annoncement}__", ctx.channel)
         Accepted = discord.Embed(title=f"**{Title}**", description=f"Full announcement made by {ctx.author}: ", color=0x3498db)
         Accepted.add_field(name=f'__Announcement Accepted__', value=f'Announcement View: {Annoncement}', inline=False)
@@ -361,7 +357,7 @@ async def _Deafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason):
         Embed.add_field(name=f'__**{Member}**__ was successfuly voice deafened and muted.', value=f'Reason: {Reason}', inline=False)
         Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar.url)
         Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-        Channel = Client.get_channel(941611620344406026)
+        Channel = Client.get_channel(942867439270645790)
         Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> VoiceDeafened <@{Member.id}>.")
         Infraction.add_field(name='**Infraction Code: **', value=f'{Code1}', inline=False)
         Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
@@ -394,7 +390,7 @@ async def _Undeafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason)
         Embed.add_field(name=f'__**{Member}**__ was successfuly voice undeafened and unmuted.',value=f'Reason: {Reason}', inline=False)
         Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar.url)
         Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-        Channel = Client.get_channel(941611620344406026)
+        Channel = Client.get_channel(942867439270645790)
         Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> UnvoiceDeafened <@{Member.id}>.")
         Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
         Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
@@ -415,7 +411,7 @@ async def _Alert(ctx, Channel_Location: discord.TextChannel,Message_Id:int):
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
     msg = await Channel_Location.fetch_message(Message_Id)
-    Channel = Client.get_channel(941411399597445252)
+    Channel = Client.get_channel(942867131089948672)
     Message = discord.Embed(title="Moderation Alert", description='All active moderators, please handle the situation.', color=0x546e7a)
     Message.add_field(name='Message ID: ', value=f'`{Message_Id}`', inline=False)
     Message.add_field(name='Who wrote the message? ', value=f'`{msg.author}/`<@{msg.author.id}>', inline=False)
@@ -428,7 +424,7 @@ async def _Alert(ctx, Channel_Location: discord.TextChannel,Message_Id:int):
 {msg.content}
 ```
     ''', inline=False)
-    await Channel.send("All active <@&901486519552995348>, please handle this situation", embed=Message)
+    await Channel.send("All active <@&909151953097981979>, please handle this situation", embed=Message)
 
 @Client.command(aliases = ['Lock', 'LockChannel'], pass_context=True)
 async def _Lock(ctx, Channel: discord.TextChannel, Amount: int, *,Reason):
@@ -574,10 +570,8 @@ async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
                 await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
                 Embed = discord.Embed(title="Ban System")
                 Embed.add_field(name=f'__**{User}**__ was unbanned successfuly with the reason: ', value=f'{Reason}', inline=False)
-                Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
-                Embed.set_thumbnail(url=User.avatar.url)
                 Embed.set_footer(text=f'Unbanned by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                Channel = Client.get_channel(941611620344406026)
+                Channel = Client.get_channel(942867439270645790)
                 Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> unbanned <@{Member.id}>.")
                 Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
                 Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
@@ -589,8 +583,6 @@ async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
             elif User not in banned_members:
                 Embed2 = discord.Embed(title="Ban System")
                 Embed2.add_field(name=f'__**{User}**__ can not be unbanned because he wasn not banned in the first place.', value=f'{Reason}', inline=False)
-                Embed2.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
-                Embed2.set_thumbnail(url=User.avatar.url)
                 Embed2.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
                 await ctx.channel.send(embed=Embed2)
                 break
@@ -621,7 +613,7 @@ async def _ClearWarnings(ctx, Member: discord.Member, *, Reason):
         Main.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
         Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
         Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-        Channel = Client.get_channel(941611620344406026)
+        Channel = Client.get_channel(942867439270645790)
         Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> cleared <@{Member.id}>'s warnings.")
         Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
         Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
@@ -674,10 +666,8 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
             print(User)
             Embed = discord.Embed(title="Ban System")
             Embed.add_field(name=f'__**{User}**__ was banned successfuly because of: ', value=f'{Reason}', inline=False)
-            Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
-            Embed.set_thumbnail(url=User.avatar.url)
             Embed.set_footer(text=f'Banned by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            Channel = Client.get_channel(941611620344406026)
+            Channel = Client.get_channel(942867439270645790)
             Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> banned <@{Member.id}>.")
             Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
             Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
@@ -755,6 +745,7 @@ async def _Infraction(ctx, Member: Union[discord.Member,discord.Object]):
             Request.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             Request.set_author(name=f'{Member} ({Member.id})', icon_url=ctx.author.avatar.url)
             await ctx.send(embed=Request)
+            return
         else:
             Nothign = discord.Embed(title="**Infraction Logs**", description=f"<@{Member.id}> was never warned, muted, kicked or banned by the bot.", color=0x9b59b6)
             Nothign.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
@@ -795,7 +786,7 @@ async def _Kick(ctx, Member: discord.Member,*, Reason):
             Embed.set_author(name='Kicked ', icon_url=Member.avatar.url)
             Embed.set_thumbnail(url=Member.avatar.url)
             Embed.set_footer(text=f'Kicked by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            Channel = Client.get_channel(941611620344406026)
+            Channel = Client.get_channel(942867439270645790)
             Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> kicked <@{Member.id}>.")
             Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
             Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
@@ -824,7 +815,7 @@ async def _Purge(ctx, Amount: int):
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             current_Date = today.strftime("%B %d, %Y")
-            Channel = Client.get_channel(941411413468016760)
+            Channel = Client.get_channel(942867913373798480)
             Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
             Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
             Embed.set_thumbnail(url=ctx.author.avatar.url)
@@ -833,6 +824,8 @@ async def _Purge(ctx, Amount: int):
             Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             await Channel.send(embed=Embed)
             await ctx.channel.send(embed=Embed)
+        elif Amount >= 50:
+            await ctx.send('Message limit is 50')
         else:
             await ctx.channel.purge(limit = Amount)
             Embed = discord.Embed(title="Purge Command", description=f'Purged {Amount} message(s).', color=0xe74c3c)
@@ -855,7 +848,7 @@ async def _Slowmode(ctx, Amount: int):
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             current_Date = today.strftime("%B %d, %Y")
-            Channel = Client.get_channel(941411413468016760)
+            Channel = Client.get_channel(942867913373798480)
             Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
             Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
             Embed.add_field(name="Error Message:", value=f'__**Please enter a valid number.**__', inline=False)
@@ -875,22 +868,6 @@ async def _Slowmode(ctx, Amount: int):
             await ctx.channel.send(embed=Embed)
     else:
         await MissingPermission(ctx, ctx.author)
-
-@Client.command(aliases = ['Time', 'Date'],  pass_context=True)
-async def _Time(ctx):
-    await Logging(ctx, ctx.message.content,ctx.author, ctx.author, None, ctx.channel)
-    today = date.today()
-    now = datetime.now()
-
-    current_time = now.strftime("%H:%M:%S")
-    current_Date = today.strftime("%B %d, %Y")
-    Embed = discord.Embed(title="Time Command", description='Your time period should be shown below: ', color=0x546e7a)
-    Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
-    Embed.set_thumbnail(url=ctx.author.avatar.url)
-    Embed.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
-    Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-    await ctx.channel.send(embed=Embed)
-    pass
 
 @Client.command(aliases = ['Warn', 'Strike', 'Infract'],  pass_context=True)
 async def _Warn(ctx, Member: discord.Member, *, Reason):
@@ -912,7 +889,7 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
-    Channel = Client.get_channel(941611620344406026)
+    Channel = Client.get_channel(942867439270645790)
     if In_Group == True or ctx.author.guild_permissions.administrator:
         await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
         Main = discord.Embed(title="**Infraction System**", description=f"Warned <@{Member.id}> successfully.")
@@ -937,6 +914,8 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
         database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Reason, Date, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Reason,f'{current_Date}, {current_time}', Type))
         database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
         Database.commit()
+        await Member.send(embed=Main)
+        return
     else:
         await MissingPermission(ctx, ctx.author)
 
@@ -972,7 +951,7 @@ async def _Ticket(ctx):
     global TypeTicket
     global Text 
     Text = None
-    Channel2 = Client.get_channel(942443398785286204)
+    Channel2 = Client.get_channel(942867862215860274)
     Today = date.today()
     Now = datetime.now()
     current_time = Now.strftime("%H:%M:%S")
@@ -1366,9 +1345,9 @@ async def _Rule(ctx):
 ​
 14. No Malicious/Harmful Links: - Malware. - IP Grabber. - Exploits. - Phishing Sites. - Crashes Discord. - Epileptic
 
-15. All commands used should be used in its right [channels](https://discord.com/channels/900845173989339186/900860343646027776).
+15. All commands used should be used in its right [channels](https://discord.com/channels/734738368205684796/735498992032415755).
 ''', inline=False)
-    Main2.set_image(url="https://images-ext-2.discordapp.net/external/GSemRO9er4G4QZ3RPQz6UMFJlMaLRlKXXlkmh3i4kaM/https/media.discordapp.net/attachments/901010647976923166/916975822055813181/Rules_text.png")
+    Main2.set_image(url="https://images-ext-2.discordapp.net/external/3GFobcHm7A0-1y-z4FkjpsC3iULWoRZ--S6gFPc4zos/https/media.discordapp.net/attachments/785507613205987330/831164473342427196/TMF_A2.png")
     await ctx.author.send(embed=Main)
     await ctx.author.send(embed=Main2)
 
@@ -1621,4 +1600,4 @@ async def _RandomNumber(ctx, First_Number: int, Second_Number:int):
 if __name__ == "__main__": 
     MyBot()
 
-Client.run('ODkxNjcyNzE0ODk5NzYzMjIw.YVBw7Q.7E4la6ihkgAtWQMz9SLfDysEyd4') 
+Client.run('OTQyODU5MzQyMjY3NDE2NjA2.YgqoMA.4SC3ZNonEurvWeDk6SRfyxB2ao8') 
