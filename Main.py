@@ -44,15 +44,14 @@ Database = connect("database.db")
 Cursor = Database.cursor()
 Guild = object()
 
-
 class MyBot(slash_util.Bot):
     def __init__(self):
-        super().__init__(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())  
+        super().__init__(command_prefix=',')  
 
         for folder in os.listdir("modules"):
             if os.path.exists(os.path.join("modules", folder, "cog.py")):
                 self.load_extension(f"modules.{folder}.cog") 
-        # elf.load_extension(f"modules.message.cog") 
+        #self.load_extension(f"modules.message.cog") 
 
 class database:
     def field(command, *values):
@@ -96,8 +95,8 @@ class Bot(commands.Bot):
         super().__init__(command_prefix=commands.when_mentioned_or(','))
 
     async def on_ready(self):
-        await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = "The darkness in ™F community"))
-        guild = Client.get_guild(734738368205684796)
+        await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = "The darkness"))
+        guild = Client.get_guild(944613708368318494)
         for black in Blacklisted:
             User = await Client.fetch_user(black)
             print(User)
@@ -110,8 +109,8 @@ class Bot(commands.Bot):
 
 @Client.event
 async def on_ready():
-    await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = "TMF's Community"))
-    guild = Client.get_guild(734738368205684796)
+    await Client.change_presence(activity=discord.Activity(type = discord.ActivityType.listening, name = "The darkness"))
+    guild = Client.get_guild(944613708368318494)
     for black in Blacklisted:
         User = await Client.fetch_user(black)
         print(User)
@@ -138,7 +137,7 @@ async def on_command_error(ctx, error):
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
-    Channel = Client.get_channel(942867913373798480)
+    Channel = Client.get_channel(944618351446069259)
     Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
     Embed.set_author(name='Error Logs', icon_url=ctx.author.avatar.url)
     Embed.set_thumbnail(url=ctx.author.avatar.url)
@@ -151,17 +150,10 @@ async def on_command_error(ctx, error):
 
 async def RoleChecker(ctx, User):
 
-    guild = Client.get_guild(734738368205684796)
+    guild = Client.get_guild(944613708368318494)
     role1 = [
-        discord.utils.get(guild.roles, id=734746065500241980), 
-        discord.utils.get(guild.roles, id=931347974565548093),
-        discord.utils.get(guild.roles, id=769150136395366400),
-        discord.utils.get(guild.roles, id=739060734998216726),
-        discord.utils.get(guild.roles, id=739095283165691924),
-        discord.utils.get(guild.roles, id=735230480986669117),
-        discord.utils.get(guild.roles, id=832687756559515699),
-        discord.utils.get(guild.roles, id=909151953097981979),
-        discord.utils.get(guild.roles, id=913556485596905472),
+        discord.utils.get(guild.roles, id=946877515845214341), 
+
     ]
     for Main in role1:
         for member in guild.members:
@@ -181,7 +173,7 @@ async def MissingPermission(ctx, Author):
 
 
 async def Logging(ctx, cmd, author: None, effected_member: None, Reason: None, Channelused: None):
-    Channel = Client.get_channel(942867131089948672)
+    Channel = Client.get_channel(944618366289735731)
     today = date.today()
     now = datetime.now()
 
@@ -263,6 +255,28 @@ async def _Nick(ctx, Member: Union[discord.Member,discord.Object],*,Nick):
 
 @Client.command(aliases = ['Softban', 'Sb','Sban'],  pass_context=True)
 async def _SoftBan(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
+    class Button(discord.ui.View):
+        @discord.ui.button(label='Approve', style=discord.ButtonStyle.green)
+        async def Approve(self, Approve: discord.ui.Button, interaction: discord.Interaction):  
+            Infraction2 = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> warned <@{Member.id}>.")
+            Infraction2.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
+            Infraction2.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+            Infraction2.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+            Infraction2.add_field(name='**Approved by: **', value=f'<@{interaction.user.id}>', inline=False)
+            Infraction2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self, embed=Infraction2) 
+
+
+        def __init__(self, timeout):
+            super().__init__(timeout=timeout)
+            self.response = None 
+
+        async def on_timeout(self):
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self) 
     today = date.today()
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
@@ -297,7 +311,14 @@ async def _SoftBan(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
             Embed.set_author(name=f'{User} ({User.id})', icon_url=User.avatar.url)
             Embed.set_thumbnail(url=User.avatar.url)
             Embed.set_footer(text=f'Soft Banned by {ctx.author}.', icon_url=ctx.author.avatar.url)
+            Channel = Client.get_channel(944618314427166751)
+            Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> unbanned <@{Member.id}>.")
+            Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+            Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+            Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
             await ctx.channel.send(embed=Embed)
+            view = Button(timeout=15780000)
+            Msg = view.message = await Channel.send(embed=Infraction, view=view)
 
             await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
             database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
@@ -321,7 +342,7 @@ async def _ServerInfo(ctx):
     Embed.add_field(name=f'Server is owned by: ', value=f'{ctx.guild.owner}/{ctx.guild.owner_id}/<@{ctx.guild.owner_id}>', inline=False)
     Embed.add_field(name=f'The server region is: ', value=f'{ctx.guild.region}', inline=False)
     Embed.add_field(name=f'The server description: ', value=f'{ctx.guild.description}', inline=False)
-    Embed.add_field(name=f'The server Creation Date: ', value=f'{ctx.guild.created_at}', inline=False)
+    Embed.add_field(name=f'The server Creation Date: ', value=f'{ctx.guild.created_at.year}, {ctx.guild.created_at.month}, {ctx.guild.created_at.day} at {ctx.guild.created_at.hour}:{ctx.guild.created_at.minute}:{ctx.guild.created_at.second}', inline=False)
     Embed.add_field(name=f'The server default notifications: ', value=f'{ctx.guild.default_notifications}', inline=False)
     Embed.add_field(name=f'Amount of members in the guild: ', value=f'{ctx.guild.member_count}', inline=False)
     Embed.add_field(name=f'Amount of channels in the guild: ', value=f'{Number2}', inline=False)
@@ -357,7 +378,7 @@ async def _Deafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason):
         Embed.add_field(name=f'__**{Member}**__ was successfuly voice deafened and muted.', value=f'Reason: {Reason}', inline=False)
         Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar.url)
         Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-        Channel = Client.get_channel(942867439270645790)
+        Channel = Client.get_channel(944618314427166751)
         Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> VoiceDeafened <@{Member.id}>.")
         Infraction.add_field(name='**Infraction Code: **', value=f'{Code1}', inline=False)
         Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
@@ -390,7 +411,7 @@ async def _Undeafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason)
         Embed.add_field(name=f'__**{Member}**__ was successfuly voice undeafened and unmuted.',value=f'Reason: {Reason}', inline=False)
         Embed.set_author(name=f'{Member} ({Member.id})', icon_url=User.avatar.url)
         Embed.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
-        Channel = Client.get_channel(942867439270645790)
+        Channel = Client.get_channel(944618314427166751)
         Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> UnvoiceDeafened <@{Member.id}>.")
         Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
         Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
@@ -406,17 +427,21 @@ async def _Undeafen(ctx, Member: Union[discord.Member,discord.Object], *,Reason)
 
 @Client.command(aliases = ['Alert', 'ModReq'], pass_context=True)
 async def _Alert(ctx, Channel_Location: discord.TextChannel,Message_Id:int): 
-    today = date.today()
+    Year = ctx.message.created_at.year - ctx.author.created_at.year
+    if Year < 1:
+        await ctx.send('Your account age is not old enough to use this command')
+        return
+    today = date.today() 
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     current_Date = today.strftime("%B %d, %Y")
     msg = await Channel_Location.fetch_message(Message_Id)
-    Channel = Client.get_channel(942867131089948672)
+    Channel = Client.get_channel(944618366289735731)
     Message = discord.Embed(title="Moderation Alert", description='All active moderators, please handle the situation.', color=0x546e7a)
     Message.add_field(name='Message ID: ', value=f'`{Message_Id}`', inline=False)
     Message.add_field(name='Who wrote the message? ', value=f'`{msg.author}/`<@{msg.author.id}>', inline=False)
     Message.add_field(name='Who reported the message? ', value=f'`{ctx.author}/`<@{ctx.author.id}>', inline=False)
-    Message.add_field(name='When? ', value=f'`{msg.created_at}`', inline=False)
+    Message.add_field(name='When? ', value=f'`{msg.created_at.year}, {msg.created_at.month}, {msg.created_at.day} at {msg.created_at.hour}:{msg.created_at.minute}:{msg.created_at.second}`', inline=False)
     Message.add_field(name='Where? ', value=f'<#{Channel_Location.id}>', inline=False)
     Message.add_field(name='Date of the report: ', value=f'{current_time}, {current_Date}', inline=False)
     Message.add_field(name='Message:', value=f'''
@@ -425,6 +450,7 @@ async def _Alert(ctx, Channel_Location: discord.TextChannel,Message_Id:int):
 ```
     ''', inline=False)
     await Channel.send("All active <@&909151953097981979>, please handle this situation", embed=Message)
+    await ctx.send('Moderation request is on-going')
 
 @Client.command(aliases = ['Lock', 'LockChannel'], pass_context=True)
 async def _Lock(ctx, Channel: discord.TextChannel, Amount: int, *,Reason):
@@ -494,8 +520,8 @@ User Id: {Member.id}
 User Tag: {MemberTag}
 User: <@{Member.id}>
 Nickname: {Member.display_name}
-Joined: {Member.joined_at} UCT
-Created at: {Member.created_at}
+Joined: {Member.joined_at.year}, {Member.joined_at.month}, {Member.joined_at.day} at {Member.joined_at.hour}:{Member.joined_at.minute}:{Member.joined_at.second}
+Created at: {Member.created_at.year}, {Member.created_at.month}, {Member.created_at.day} at {Member.created_at.hour}:{Member.created_at.minute}:{Member.created_at.second}
 ''', inline=False)
 
         Main.set_author(name=f'{Member.id}', icon_url=MemberTag.avatar.url)
@@ -551,6 +577,27 @@ async def _Case(ctx, Code):
 
 @Client.command(aliases = ['Unban'], pass_context=True)
 async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
+    class Button(discord.ui.View):
+        @discord.ui.button(label='Approve', style=discord.ButtonStyle.green)
+        async def Approve(self, Approve: discord.ui.Button, interaction: discord.Interaction):  
+            Infraction2 = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> warned <@{Member.id}>.")
+            Infraction2.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+            Infraction2.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+            Infraction2.add_field(name='**Approved by: **', value=f'<@{interaction.user.id}>', inline=False)
+            Infraction2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self, embed=Infraction2) 
+
+
+        def __init__(self, timeout):
+            super().__init__(timeout=timeout)
+            self.response = None 
+
+        async def on_timeout(self):
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self) 
     today = date.today()
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
@@ -571,12 +618,13 @@ async def _Unban(ctx, Member: Union[discord.Member,discord.Object],*,Reason):
                 Embed = discord.Embed(title="Ban System")
                 Embed.add_field(name=f'__**{User}**__ was unbanned successfuly with the reason: ', value=f'{Reason}', inline=False)
                 Embed.set_footer(text=f'Unbanned by {ctx.author}.', icon_url=ctx.author.avatar.url)
-                Channel = Client.get_channel(942867439270645790)
+                Channel = Client.get_channel(944618314427166751)
                 Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> unbanned <@{Member.id}>.")
                 Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
                 Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
                 Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-                await Channel.send(embed=Infraction)
+                view = Button(timeout=15780000)
+                Msg = view.message = await Channel.send(embed=Infraction, view=view)
                 await ctx.channel.send(embed=Embed)
                 await ctx.guild.unban(user)
                 break
@@ -613,7 +661,7 @@ async def _ClearWarnings(ctx, Member: discord.Member, *, Reason):
         Main.add_field(name='Reason: ', value=f'__{Reason}__', inline=False)
         Main.add_field(name='Date: ', value=f'{current_time}, {current_Date}', inline=False)
         Main.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-        Channel = Client.get_channel(942867439270645790)
+        Channel = Client.get_channel(944618314427166751)
         Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> cleared <@{Member.id}>'s warnings.")
         Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
         Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
@@ -623,6 +671,7 @@ async def _ClearWarnings(ctx, Member: discord.Member, *, Reason):
         await ctx.channel.send(embed=Main)
         for record in records:
             database.execute("DELETE FROM Warning_Logs WHERE UserID=?", (Member.id,))
+            Database.commit()
     else:
         await MissingPermission(ctx, ctx.author) 
 
@@ -633,6 +682,28 @@ async def _Version(ctx):
 
 @Client.command(aliases = ['Ban'],  pass_context=True)
 async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
+    class Button(discord.ui.View):
+        @discord.ui.button(label='Approve', style=discord.ButtonStyle.green)
+        async def Approve(self, Approve: discord.ui.Button, interaction: discord.Interaction):  
+            Infraction2 = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> warned <@{Member.id}>.")
+            Infraction2.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
+            Infraction2.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+            Infraction2.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+            Infraction2.add_field(name='**Approved by: **', value=f'<@{interaction.user.id}>', inline=False)
+            Infraction2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self, embed=Infraction2) 
+
+
+        def __init__(self, timeout):
+            super().__init__(timeout=timeout)
+            self.response = None 
+
+        async def on_timeout(self):
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self) 
 
     today = date.today()
     now = datetime.now()
@@ -667,13 +738,12 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
             Embed = discord.Embed(title="Ban System")
             Embed.add_field(name=f'__**{User}**__ was banned successfuly because of: ', value=f'{Reason}', inline=False)
             Embed.set_footer(text=f'Banned by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            Channel = Client.get_channel(942867439270645790)
+            Channel = Client.get_channel(944618314427166751)
             Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> banned <@{Member.id}>.")
             Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
             Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
             Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
             Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            await Channel.send(embed=Infraction)
             await ctx.channel.send(embed=Embed)
 
             await Logging(ctx, ctx.message.content,ctx.author, User, Reason, ctx.channel)
@@ -681,6 +751,8 @@ async def _Ban(ctx, Member: Union[discord.Member,discord.Object],*, Reason):
             database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
             Database.commit()
             await ctx.guild.ban(User, reason=Reason)
+            view = Button(timeout=15780000)
+            Msg = view.message = await Channel.send(embed=Infraction, view=view)
     else:
         await MissingPermission(ctx, ctx.author)
 
@@ -699,48 +771,33 @@ async def _Infraction(ctx, Member: Union[discord.Member,discord.Object]):
         if User_Edited != "[[]]":
             Warnings_User = records5[0][0]
         if Member.id == Warnings_User:
-            Warnings_Date = []
-            Warnings_Reason = []
-            Warnings_Admin = []
-            Warnings_Type = []
-            Selected_Code = "SELECT Code FROM Warning_Logs WHERE UserID = %d" % Member.id
-            Selected_Reason = "SELECT Reason FROM Warning_Logs WHERE UserID = %d" % Member.id
-            Selected_Date = "SELECT Date FROM Warning_Logs WHERE UserID = %d" % Member.id
-            Selected_Admin = "SELECT Administrator FROM Warning_Logs WHERE UserID = %d" % Member.id
-            Selected_Type = "SELECT Type FROM Warning_Logs WHERE UserID = %d" % Member.id
-            Cursor.execute(Selected_Code)
+
+            Selected = "SELECT Code FROM Warning_Logs WHERE UserID = %d" % Member.id
+            Cursor.execute(Selected)
             records = Cursor.fetchall()
-            Cursor.execute(Selected_Reason)
-            records2 = Cursor.fetchall()
-            Cursor.execute(Selected_Date)
-            records3 = Cursor.fetchall()
-            Cursor.execute(Selected_Admin)
-            records4 = Cursor.fetchall()
-            Cursor.execute(Selected_Type)
-            records5 = Cursor.fetchall()
+
+            query = "SELECT Code, Reason, Date, Administrator, Type FROM Warning_Logs WHERE UserID = ?"
+
+            Cursor.execute(query, [Member.id])
+            row = Cursor.fetchall()
 
             Request = discord.Embed(title="**Infraction Logs**", description=f"<@{Member.id}>'s Infractions: ", color=0xe67e22)
-
             Code_Number = 0
-            for record in records:
-                for record2 in records2:
-                    Warnings_Reason.insert(1, record2)
-                    for record3 in records3:
-                        Warnings_Date.insert(1, record3)
-                        for record4 in records4:
-                            Warnings_Admin.insert(1, record4)
-                            for record5 in records5:
-                                Warnings_Type.insert(1, record5)
+            xlen = len(row)
+            print(xlen)
+
+            for x in row:
+                Code_Number = Code_Number + 1
+                print(Code_Number)
+
 
             
-            for record in records:
-                Code_Number = Code_Number + 1
                 Request.add_field(name=f'Infraction Number {Code_Number}: ', value=f'''
-**Code: ** `{record[0]}`
-**Type: ** {Warnings_Type[0][0]}
-**Reason: ** {Warnings_Reason[0][0]}
-**Date: ** {Warnings_Date[0][0]}
-**Infracted by: ** <@{Warnings_Admin[0][0]}>
+**Code: ** ` {x[0]}`
+**Type: ** {x[4]}
+**Reason: ** {x[1]}
+**Date: ** {x[2]}
+**Infracted by: ** <@{x[3]}>
                 ''', inline=False)
             Request.set_footer(text=f'Requested by {ctx.author}.', icon_url=ctx.author.avatar.url)
             Request.set_author(name=f'{Member} ({Member.id})', icon_url=ctx.author.avatar.url)
@@ -755,6 +812,28 @@ async def _Infraction(ctx, Member: Union[discord.Member,discord.Object]):
 
 @Client.command(aliases = ['Kick'],  pass_context=True)
 async def _Kick(ctx, Member: discord.Member,*, Reason):
+    class Button(discord.ui.View):
+        @discord.ui.button(label='Approve', style=discord.ButtonStyle.green)
+        async def Approve(self, Approve: discord.ui.Button, interaction: discord.Interaction):  
+            Infraction2 = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> warned <@{Member.id}>.")
+            Infraction2.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
+            Infraction2.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+            Infraction2.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+            Infraction2.add_field(name='**Approved by: **', value=f'<@{interaction.user.id}>', inline=False)
+            Infraction2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self, embed=Infraction2) 
+
+
+        def __init__(self, timeout):
+            super().__init__(timeout=timeout)
+            self.response = None 
+
+        async def on_timeout(self):
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self) 
     today = date.today()
     now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
@@ -786,19 +865,20 @@ async def _Kick(ctx, Member: discord.Member,*, Reason):
             Embed.set_author(name='Kicked ', icon_url=Member.avatar.url)
             Embed.set_thumbnail(url=Member.avatar.url)
             Embed.set_footer(text=f'Kicked by {ctx.author}.', icon_url=ctx.author.avatar.url)
-            Channel = Client.get_channel(942867439270645790)
+            Channel = Client.get_channel(944618314427166751)
             Infraction = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> kicked <@{Member.id}>.")
             Infraction.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
             Infraction.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
             Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
             Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
-            await Channel.send(embed=Infraction)
-            await ctx.channel.send(embed=Embed)    
+            await Channel.send(embed=Infraction)    
             await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
             database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Date, Reason, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Time, Reason, Type))
             database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
             Database.commit()
             await Member.kick(reason=Reason)
+            view = Button(timeout=15780000)
+            Msg = view.message = await Channel.send(embed=Infraction, view=view)
     else:
         await MissingPermission(ctx, ctx.author)
 
@@ -815,7 +895,7 @@ async def _Purge(ctx, Amount: int):
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             current_Date = today.strftime("%B %d, %Y")
-            Channel = Client.get_channel(942867913373798480)
+            Channel = Client.get_channel(944618351446069259)
             Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
             Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
             Embed.set_thumbnail(url=ctx.author.avatar.url)
@@ -848,7 +928,7 @@ async def _Slowmode(ctx, Amount: int):
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             current_Date = today.strftime("%B %d, %Y")
-            Channel = Client.get_channel(942867913373798480)
+            Channel = Client.get_channel(944618351446069259)
             Embed = discord.Embed(title="Error Was Found", description='If you think this is a mistake please contact the system developer.', color=0xe67e22)
             Embed.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
             Embed.add_field(name="Error Message:", value=f'__**Please enter a valid number.**__', inline=False)
@@ -871,6 +951,29 @@ async def _Slowmode(ctx, Amount: int):
 
 @Client.command(aliases = ['Warn', 'Strike', 'Infract'],  pass_context=True)
 async def _Warn(ctx, Member: discord.Member, *, Reason):
+
+    class Button(discord.ui.View):
+        @discord.ui.button(label='Approve', style=discord.ButtonStyle.green)
+        async def Approve(self, Approve: discord.ui.Button, interaction: discord.Interaction):  
+            Infraction2 = discord.Embed(title="**Infraction System**", description=f"<@{ctx.author.id}> warned <@{Member.id}>.")
+            Infraction2.add_field(name='**Infraction Code: **', value=f'{Number}/{Code1}', inline=False)
+            Infraction2.add_field(name='**Reason: **', value=f'__{Reason}__', inline=False)
+            Infraction2.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
+            Infraction2.add_field(name='**Approved by: **', value=f'<@{interaction.user.id}>', inline=False)
+            Infraction2.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self, embed=Infraction2) 
+
+
+        def __init__(self, timeout):
+            super().__init__(timeout=timeout)
+            self.response = None 
+
+        async def on_timeout(self):
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self) 
     Selected_Code = "SELECT Thing FROM Strike_Code"
     Cursor.execute(Selected_Code)
     records = Cursor.fetchall()
@@ -889,7 +992,7 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
     await RoleChecker(ctx, ctx.author)
     result_from_errorrank = await RoleChecker(ctx, ctx.author)
     In_Group = result_from_errorrank
-    Channel = Client.get_channel(942867439270645790)
+    Channel = Client.get_channel(944618314427166751)
     if In_Group == True or ctx.author.guild_permissions.administrator:
         await Logging(ctx, ctx.message.content,ctx.author, Member, Reason, ctx.channel)
         Main = discord.Embed(title="**Infraction System**", description=f"Warned <@{Member.id}> successfully.")
@@ -910,12 +1013,13 @@ async def _Warn(ctx, Member: discord.Member, *, Reason):
         Infraction.add_field(name='**Date: **', value=f'{current_time}, {current_Date}', inline=False)
         Infraction.set_author(name=f'{ctx.author} ({ctx.author.id})', icon_url=ctx.author.avatar.url)
         await ctx.channel.send(embed=Main)
-        Msg = await Channel.send(embed=Infraction)
+        
         database.execute("INSERT INTO Warning_Logs (Code, UserID, Administrator, Reason, Date, Type) VALUES (?, ?, ?, ?, ?, ?)", (Code1, Member.id, ctx.author.id,Reason,f'{current_Date}, {current_time}', Type))
         database.execute("INSERT INTO Strike_Code (StrikeNumber) VALUES (?)", (Member.id,))
         Database.commit()
         await Member.send(embed=Main)
-        return
+        view = Button(timeout=15780000)
+        Msg = view.message = await Channel.send(embed=Infraction, view=view)
     else:
         await MissingPermission(ctx, ctx.author)
 
@@ -951,7 +1055,7 @@ async def _Ticket(ctx):
     global TypeTicket
     global Text 
     Text = None
-    Channel2 = Client.get_channel(942867862215860274)
+    Channel2 = Client.get_channel(944618329140760598)
     Today = date.today()
     Now = datetime.now()
     current_time = Now.strftime("%H:%M:%S")
@@ -1345,7 +1449,7 @@ async def _Rule(ctx):
 ​
 14. No Malicious/Harmful Links: - Malware. - IP Grabber. - Exploits. - Phishing Sites. - Crashes Discord. - Epileptic
 
-15. All commands used should be used in its right [channels](https://discord.com/channels/734738368205684796/735498992032415755).
+15. All commands used should be used in its right [channels](https://discord.com/channels/944613708368318494/735498992032415755).
 ''', inline=False)
     Main2.set_image(url="https://images-ext-2.discordapp.net/external/3GFobcHm7A0-1y-z4FkjpsC3iULWoRZ--S6gFPc4zos/https/media.discordapp.net/attachments/785507613205987330/831164473342427196/TMF_A2.png")
     await ctx.author.send(embed=Main)
@@ -1597,7 +1701,9 @@ async def _RandomNumber(ctx, First_Number: int, Second_Number:int):
         await Logging(ctx, ctx.message.content,ctx.author, ctx.author, F'Random number: {Number}', ctx.channel)
         await ctx.send(Number)
 
-if __name__ == "__main__": 
-    MyBot()
+    
 
-Client.run('OTQyODU5MzQyMjY3NDE2NjA2.YgqoMA.4SC3ZNonEurvWeDk6SRfyxB2ao8') 
+if __name__ == "__main__": 
+    print('hey')
+    MyBot()
+Client.run('OTQ0NjEzOTYzMDc1ODI5Nzcx.YhEKTg.R5YKtPQhUhaUDuOMz52wzwKNchk') 
