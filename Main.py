@@ -31,7 +31,7 @@ from discord.ext import commands
 import asyncio
 import certifi
 import aiohttp
-from sqlite3 import connect
+from psycopg2 import connect
 from collections import defaultdict
 import discord.http, discord.state
 from discord.utils import MISSING
