@@ -78,4 +78,3 @@ yarl==1.6.3
 psycopg2-binary
 ro_py
 roblox
-secrets
