@@ -935,7 +935,7 @@ Fee Value: `5 USD`
 async def moderate(interaction: discord.Interaction):
     await interaction.response.send_message("Moderation Command Activated",ephemeral=True)
 
-group_moderation = app_commands.Group(name="moderation", description="Management related Command!")
+group_moderation = app_commands.Group(name="moderation", description="Moderation related Command!")
 
 @group_moderation.command(description='Posts a moderation log.', name='create')
 @app_commands.describe(username= 'The username of the Suspect.',reason='What did they do to get punished.', length='For how long is the ban going to stay.', note='Anything you want to add.', evidence='Evidence for your claims (links only)')
@@ -1245,13 +1245,27 @@ tree.add_command(group_moderation, guild=discord.Object(id=995332563281383508))
 
 
 @tree.command()
-async def moderate(interaction: discord.Interaction):
-    await interaction.response.send_message("Moderation Command Activated",ephemeral=True)
+async def profile(interaction: discord.Interaction):
+    await interaction.response.send_message("Profile Command Activated",ephemeral=True)
 
-group_profile = app_commands.Group(name="moderation", description="Management related Command!")
+group_profile = app_commands.Group(name="profile", description="Profile related Command!")
 
+@group_profile.command(guild=discord.Object(id=995332563281383508), description='Set up a profile for staff members!')
+@app_commands.describe(user='Which Staff Member is the profile for.')
+async def create(interaction: discord.Interaction, user: discord.Member = None):
+    await interaction.response.send_message('Coming Soon')
 
-tree.add_command(group_moderation, guild=discord.Object(id=995332563281383508))
+@group_profile.command(guild=discord.Object(id=995332563281383508), description='Remove the setup for the staff member, but logs remain!')
+@app_commands.describe(user='Which Staff Member do you want to remove.')
+async def remove(interaction: discord.Interaction, user: discord.Member):
+    await interaction.response.send_message('Coming Soon')
+
+@group_profile.command(guild=discord.Object(id=995332563281383508), description='View the profile of the chosen Staff Member.')
+@app_commands.describe(user='Which Staff Member do you want to view.')
+async def remove(interaction: discord.Interaction, user: discord.Member):
+    await interaction.response.send_message('Coming Soon')
+
+tree.add_command(group_profile, guild=discord.Object(id=995332563281383508))
 
 
 
