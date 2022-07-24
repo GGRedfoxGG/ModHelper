@@ -8,7 +8,6 @@ from platform import python_version
 from pydoc import cli
 from socket import timeout
 from tokenize import group
-from turtle import color
 from unicodedata import name
 from urllib import response
 from discord import ChannelType, Embed, InteractionResponse, Object, __version__ as discord_version, ui
