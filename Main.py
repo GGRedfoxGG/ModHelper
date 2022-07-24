@@ -37,7 +37,6 @@ import discord.http, discord.state
 from discord.utils import MISSING
 from typing import Literal
 import os
-from dotenv import load_dotenv
 from pyparsing import col
 import roblox
 from roblox import Client, AvatarThumbnailType
@@ -47,12 +46,9 @@ from secrets import *
 from discord import app_commands
 from discord.app_commands import CommandTree
 
-load_dotenv()
-
-TOKEN = os.getenv("Roblox_TOKEN")
 
 
-client = Client(os.getenv("TOKEN"))
+client = Client(os.environ['Roblox_TOKEN'])
 Client_Bot = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client_Bot.remove_command("help")
 Database = connect(host="containers-us-west-59.railway.app", database="railway", user="postgres", password=os.environ['Password'])
