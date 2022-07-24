@@ -56,7 +56,7 @@ TOKEN = os.getenv("Roblox_TOKEN")
 client = Client(os.getenv("TOKEN"))
 Client_Bot = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client_Bot.remove_command("help")
-Database = connect(host="containers-us-west-31.railway.app", database="railway", user="postgres", password=os.environ['Password'])
+Database = connect(host="containers-us-west-59.railway.app", database="railway", user="postgres", password=os.environ['Password'])
 Cursor = Database.cursor()
 Guild = object()
 
