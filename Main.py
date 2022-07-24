@@ -1250,7 +1250,7 @@ async def profile(interaction: discord.Interaction):
 
 group_profile = app_commands.Group(name="profile", description="Profile related Command!")
 
-@group_profile.command( description='Set up a profile for staff members!', name='create')
+@group_profile.command(description='Set up a profile for staff members!', name='create')
 @app_commands.describe(user='Which Staff Member is the profile for.')
 async def create(interaction: discord.Interaction, user: discord.Member = None):
     await interaction.response.send_message('Coming Soon')
@@ -1260,7 +1260,7 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
 async def remove(interaction: discord.Interaction, user: discord.Member):
     await interaction.response.send_message('Coming Soon')
 
-@group_profile.command(gdescription='View the profile of the chosen Staff Member.', name='view')
+@group_profile.command(description='View the profile of the chosen Staff Member.', name='view')
 @app_commands.describe(user='Which Staff Member do you want to view.')
 async def view(interaction: discord.Interaction, user: discord.Member):
     await interaction.response.send_message('Coming Soon')
