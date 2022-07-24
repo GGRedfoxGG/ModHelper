@@ -1246,14 +1246,3 @@ tree.add_command(group_moderation, guild=discord.Object(id=995332563281383508))
 
 
 Client_Bot.run(os.environ['Token']) 
-
-    #card_right_shape = [(600,0),(750,300),(900,300),(900,1)]
-    #background.rectangle((30,220),width=650,height=40,color="#FFFFFF")
-    #background.bar((30,220),max_width=650,height=40,color="#FFFFFF",radius=20,)
-
- #        discord.utils.get(ctx.guild.roles, id=995333270789165106), # Tester
-        #discord.utils.get(ctx.guild.roles, id=995333471289495652), # Supervisor
-        #discord.utils.get(ctx.guild.roles, id=995333162160894083), # Dev
-
-
-
