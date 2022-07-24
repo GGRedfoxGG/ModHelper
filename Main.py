@@ -51,7 +51,7 @@ from discord.app_commands import CommandTree
 client = Client(os.environ['Roblox_TOKEN'])
 Client_Bot = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client_Bot.remove_command("help")
-Database = connect(host="containers-us-west-59.railway.app", database="railway", user="postgres", password=os.environ['Password'])
+Database = connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password'])
 Cursor = Database.cursor()
 Guild = object()
 
@@ -1240,4 +1240,27 @@ Description: `{fetched_data.description}`
 tree.add_command(group_moderation, guild=discord.Object(id=995332563281383508))
 
 
+# _______ Profile ________ #
+
+
+
+@tree.command()
+async def moderate(interaction: discord.Interaction):
+    await interaction.response.send_message("Moderation Command Activated",ephemeral=True)
+
+group_profile = app_commands.Group(name="moderation", description="Management related Command!")
+
+
+tree.add_command(group_moderation, guild=discord.Object(id=995332563281383508))
+
+
+
 Client_Bot.run(os.environ['Token']) 
+
+
+#    Selected_Code = "select thing from strike_logs"
+#    Cursor.execute(Selected_Code)
+#    records = Cursor.fetchall()
+
+#    Cursor.execute(f"insert into ticket_logs (ticket) values ({random.randint(0,999999999999999999)})")
+#    Database.commit()
