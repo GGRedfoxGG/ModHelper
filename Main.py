@@ -40,12 +40,12 @@ import os
 from pyparsing import col
 import roblox
 from roblox import Client, AvatarThumbnailType
+import easy_pil
 from easy_pil import *
 import secrets
 from secrets import * 
 from discord import app_commands
 from discord.app_commands import CommandTree
-
 
 
 client = Client(os.environ['Roblox_TOKEN'])
