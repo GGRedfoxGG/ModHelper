@@ -1261,6 +1261,7 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     records = Cursor.fetchall()
     record = None
     for record in records:
+        print(record)
         if user == None and record == interaction.user.id:
             await interaction.followup.send("You already have a profile on the Database.", ephemeral=True)
         elif user and record == user.id:
