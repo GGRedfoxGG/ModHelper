@@ -1256,7 +1256,8 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     await interaction.response.defer(thinking=True, ephemeral=True)
     await RoleChecker(interaction, interaction.user)
     results = await RoleChecker(interaction, interaction.user)
-    Cursor.execute("select * from staff where id = ?", (user.id,))
+    query2 = f"select id from staff where (id) = {user.id}"
+    Cursor.execute(query2)
     records = Cursor.fetchall()
     record = None
     for record in records:
