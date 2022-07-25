@@ -1263,10 +1263,10 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     for record in records:
         print(record)
         print(record[-1])
-        if record == user.id:
-            await interaction.followup.send("This user already have a profile on the Database.", ephemeral=True)
-        elif user == None and record == interaction.user.id:
+        if user == None and record == interaction.user.id:
             await interaction.followup.send("You already have a profile on the Database.", ephemeral=True)
+        elif user and record == user.id:
+            await interaction.followup.send("This user already have a profile on the Database.", ephemeral=True)
     # _____ Variabls ______ #
     if results == True or interaction.user.guild_permissions.administrator:
         if user == None:
