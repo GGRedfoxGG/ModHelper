@@ -1253,10 +1253,19 @@ group_profile = app_commands.Group(name="profile", description="Profile related 
 @group_profile.command(description='Set up a profile for Staff Member!', name='create')
 @app_commands.describe(user='Which Staff Member is the profile for.')
 async def create(interaction: discord.Interaction, user: discord.Member = None):
+    await interaction.response.defer(thinking=True, ephemeral=True)
     await RoleChecker(interaction, interaction.user)
     results = await RoleChecker(interaction, interaction.user)
+    Selected_Code = "select id from staff"
+    Cursor.execute(Selected_Code)
+    records = Cursor.fetchall()
+    record = None
+    for record in records:
+        if record == user.id:
+            await interaction.followup.send("This user already have a profile on the Database.", ephemeral=True)
+        elif user == None and record == interaction.user.id:
+            await interaction.followup.send("You already have a profile on the Database.", ephemeral=True)
     # _____ Variabls ______ #
-    await interaction.response.defer(thinking=True, ephemeral=True)
     if results == True or interaction.user.guild_permissions.administrator:
         if user == None:
             Cursor.execute(f"insert into staff (id) values ({interaction.user.id})")
