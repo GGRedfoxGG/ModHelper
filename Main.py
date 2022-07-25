@@ -1256,19 +1256,14 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     await interaction.response.defer(thinking=True, ephemeral=True)
     await RoleChecker(interaction, interaction.user)
     results = await RoleChecker(interaction, interaction.user)
-    Selected_Code = "select id from staff"
-    Cursor.execute(Selected_Code)
+    Cursor.execute("select * from staff where id = ?", (user.id,))
     records = Cursor.fetchall()
     record = None
     for record in records:
-        print(record)
-        print(record[-1])
         if user == None and record == interaction.user.id:
             await interaction.followup.send("You already have a profile on the Database.", ephemeral=True)
-            return
         elif user and record == user.id:
             await interaction.followup.send("This user already have a profile on the Database.", ephemeral=True)
-            return
     # _____ Variabls ______ #
     if results == True or interaction.user.guild_permissions.administrator:
         if user == None:
