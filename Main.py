@@ -1250,12 +1250,31 @@ async def profile(interaction: discord.Interaction):
 
 group_profile = app_commands.Group(name="profile", description="Profile related Command!")
 
-@group_profile.command(description='Set up a profile for staff members!', name='create')
+@group_profile.command(description='Set up a profile for Staff Member!', name='create')
 @app_commands.describe(user='Which Staff Member is the profile for.')
 async def create(interaction: discord.Interaction, user: discord.Member = None):
-    await interaction.response.send_message('Coming Soon')
+    await RoleChecker(interaction, interaction.user)
+    results = await RoleChecker(interaction, interaction.user)
+    # _____ Variabls ______ #
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    if results == True or interaction.user.guild_permissions.administrator:
+        if user == None:
+            Cursor.execute(f"insert into staff (id) values ({interaction.user.id})")
+            Database.commit()
+            await interaction.followup.send('Profile creation was successful for your account.', ephemeral=True)
+        else:
+            await RoleChecker(interaction, interaction.user)
+            results2 = await RoleChecker(interaction, user) 
+            if results2 == True:
+                Cursor.execute(f"insert into staff (id) values ({user.id})")
+                Database.commit()
+                await interaction.followup.send(f'Profile creation was successful for {user}.', ephemeral=True)
+            else:
+                await interaction.followup.send(f'{user} is not a Staff Member, you can only set up a profile for Staff Members.', ephemeral=True)
+    else:
+        await interaction.followup.send("You're not allowed to use this command.", ephemeral=True)
 
-@group_profile.command(description='Remove the setup for the staff member, but logs remain!', name='remove')
+@group_profile.command(description='Remove the setup for the Staff Member, but logs remain!', name='remove')
 @app_commands.describe(user='Which Staff Member do you want to remove.')
 async def remove(interaction: discord.Interaction, user: discord.Member):
     await interaction.response.send_message('Coming Soon')
