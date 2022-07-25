@@ -1265,8 +1265,10 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
         print(record[-1])
         if user == None and record == interaction.user.id:
             await interaction.followup.send("You already have a profile on the Database.", ephemeral=True)
+            return
         elif user and record == user.id:
             await interaction.followup.send("This user already have a profile on the Database.", ephemeral=True)
+            return
     # _____ Variabls ______ #
     if results == True or interaction.user.guild_permissions.administrator:
         if user == None:
