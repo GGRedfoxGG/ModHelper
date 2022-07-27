@@ -31,7 +31,12 @@ from discord.ext import commands
 import asyncio
 import certifi
 import aiohttp
+
 from psycopg2 import connect
+import asyncpg
+from asyncpg import *
+
+
 from collections import defaultdict
 import discord.http, discord.state
 from discord.utils import MISSING
@@ -1294,6 +1299,12 @@ async def remove(interaction: discord.Interaction, user: discord.Member):
 async def view(interaction: discord.Interaction, user: discord.Member):
     await interaction.response.send_message('Coming Soon')
 
+@group_profile.command(description='Testing Command.', name='test')
+async def test(interaction: discord.Interaction):
+    async with Client_Bot.pool.acquire() as connection:
+        async with connection.transaction():
+            value = await connection.fetchval('SELECT id FROM staff WHERE id = $1', (interaction.user.id,))
+            await interaction.response.send_message(value)
 tree.add_command(group_profile, guild=discord.Object(id=995332563281383508))
 
 
