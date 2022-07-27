@@ -56,7 +56,7 @@ from discord.app_commands import CommandTree
 client = Client(os.environ['Roblox_TOKEN'])
 Client_Bot = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client_Bot.remove_command("help")
-Database = connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password'])
+Database = asyncpg.connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password'])
 Cursor = Database.cursor()
 Guild = object()
 
@@ -1306,7 +1306,6 @@ async def test(interaction: discord.Interaction):
             value = await connection.fetchval('SELECT id FROM staff WHERE id = $1', (interaction.user.id,))
             await interaction.response.send_message(value)
 tree.add_command(group_profile, guild=discord.Object(id=995332563281383508))
-
 
 
 Client_Bot.run(os.environ['Token']) 
