@@ -57,7 +57,7 @@ client = Client(os.environ['Roblox_TOKEN'])
 Client_Bot = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client_Bot.remove_command("help")
 Database = asyncpg.connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password'])
-Cursor = Database.cursor()
+#Cursor = Database.cursor()
 Guild = object()
 
 Blacklisted = []
