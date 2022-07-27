@@ -56,8 +56,8 @@ from discord.app_commands import CommandTree
 client = Client(os.environ['Roblox_TOKEN'])
 Client_Bot = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client_Bot.remove_command("help")
-Database = asyncpg.connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password'])
-#Cursor = Database.cursor()
+Database = asyncpg.connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password']) 
+cur= Database.cursor()
 Guild = object()
 
 Blacklisted = []
@@ -1301,10 +1301,9 @@ async def view(interaction: discord.Interaction, user: discord.Member):
 
 @group_profile.command(description='Testing Command.', name='test')
 async def test(interaction: discord.Interaction):
-    async with Client_Bot.pool.acquire() as connection:
-        async with connection.transaction():
-            value = await connection.fetchval('SELECT id FROM staff WHERE id = $1', (interaction.user.id,))
-            await interaction.response.send_message(value)
+    async with Database.transaction():
+        value = await Database.execute('SELECT id FROM staff WHERE id = $1', (interaction.user.id,))
+        await interaction.response.send_message(value)
 tree.add_command(group_profile, guild=discord.Object(id=995332563281383508))
 
 
