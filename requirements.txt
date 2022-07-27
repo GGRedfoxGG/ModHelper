@@ -77,6 +77,7 @@ yarg==0.1.9
 yarl==1.6.3
 psycopg2-binary
 aiohttp
+asyncpg==0.26.0
 ro_py
 roblox
 easy_pil
