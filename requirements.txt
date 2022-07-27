@@ -76,6 +76,7 @@ websocket-client==1.2.1
 yarg==0.1.9
 yarl==1.6.3
 psycopg2-binary
+aiohttp
 ro_py
 roblox
 easy_pil
