@@ -1260,14 +1260,11 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     await interaction.response.defer(thinking=True, ephemeral=True)
     await RoleChecker(interaction, interaction.user)
     results = await RoleChecker(interaction, interaction.user)
-    query2 = await connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
-    record = None
-    for record in query2:
-        print(record)
-        if user == None and record == interaction.user.id:
-            await interaction.followup.send("You already have a profile on the Database.", ephemeral=True)
-        elif user and record == user.id:
-            await interaction.followup.send("This user already have a profile on the Database.", ephemeral=True)
+    query = await connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
+    if user == None and query == interaction.user.id:
+        await interaction.followup.send("You already have a profile on the Database.", ephemeral=True)
+    elif user and query == user.id:
+        await interaction.followup.send("This user already have a profile on the Database.", ephemeral=True)
     # _____ Variabls ______ #
     if results == True or interaction.user.guild_permissions.administrator:
         if user == None:
