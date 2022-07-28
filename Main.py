@@ -193,7 +193,7 @@ async def message_report(interaction: discord.Interaction, message: discord.Mess
     for i in Time5.splitlines():
         Time4 = i.split('.')[0]
     # Function Code #
-    Message = discord.Embed(title="Moderation Alert", description='All active moderators, please handle the situation: ', color=0x546e7a)
+    Message = discord.Embed(title="Moderation Alert", description='There is an live situation that need to be handled: ', color=0x546e7a)
     Message.add_field(name='Message ID: ', value=f'`{message.id}`', inline=False)
     Message.add_field(name='Who wrote the message? ', value=f'`{message.author}/`<@{message.author.id}>', inline=False)
     Message.add_field(name='Who reported the message? ', value=f'`{interaction.user}/`<@{interaction.user.id}>', inline=False)
@@ -1276,8 +1276,17 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
             await connection.execute(f"INSERT INTO staff (id) VALUES ({interaction.user.id})")
             await interaction.followup.send('Profile creation was successful for your account.', ephemeral=True)
         else:
-            await RoleChecker(interaction, interaction.user)
-            results2 = await RoleChecker(interaction, user) 
+            results2 = False
+            role1 = [
+                discord.utils.get(interaction.guild.roles, id=995333471289495652), # Supervisor
+                discord.utils.get(interaction.guild.roles, id=995333162160894083), # Dev
+            ]
+            for Main in role1:
+                for member in interaction.guild.members:
+                    if interaction.user == member:
+                        for role in member.roles:
+                            if role == Main:
+                                results2 = True
             if results2 == True:
                 await connection.execute(f"INSERT INTO staff (id) VALUES ({user.id})")
                 await interaction.followup.send(f'Profile creation was successful for {user}.', ephemeral=True)
@@ -1296,11 +1305,6 @@ async def remove(interaction: discord.Interaction, user: discord.Member):
 async def view(interaction: discord.Interaction, user: discord.Member):
     await interaction.response.send_message('Coming Soon')
 
-@group_profile.command(description='Testing Command.', name='test')
-async def terst(interaction: discord.Interaction):
-    connection = await asyncpg.connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password']) 
-    value = await connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
-    await interaction.response.send_message(value)
 
 tree.add_command(group_profile, guild=discord.Object(id=995332563281383508))
 
