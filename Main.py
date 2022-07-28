@@ -1263,8 +1263,10 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     query = await connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
     if user == None and query == interaction.user.id:
         await interaction.followup.send("You already have a profile on the Database.", ephemeral=True)
+        return
     elif user and query == user.id:
         await interaction.followup.send("This user already have a profile on the Database.", ephemeral=True)
+        return
     # _____ Variabls ______ #
     if results == True or interaction.user.guild_permissions.administrator:
         if user == None:
