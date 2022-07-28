@@ -1303,7 +1303,7 @@ async def terst(interaction: discord.Interaction):
     
     value = await database_connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
     await interaction.response.send_message(value)
-asyncio.get_event_loop().run_until_complete(terst())
+
 tree.add_command(group_profile, guild=discord.Object(id=995332563281383508))
 
 
