@@ -1260,11 +1260,9 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     await interaction.response.defer(thinking=True, ephemeral=True)
     await RoleChecker(interaction, interaction.user)
     results = await RoleChecker(interaction, interaction.user)
-    query2 = f"select id from staff where (id) = {user.id}"
-    Cursor.execute(query2)
-    records = Cursor.fetchall()
+    query2 = await connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
     record = None
-    for record in records:
+    for record in query2:
         print(record)
         if user == None and record == interaction.user.id:
             await interaction.followup.send("You already have a profile on the Database.", ephemeral=True)
@@ -1273,15 +1271,13 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     # _____ Variabls ______ #
     if results == True or interaction.user.guild_permissions.administrator:
         if user == None:
-            Cursor.execute(f"insert into staff (id) values ({interaction.user.id})")
-            connection.commit()
+            await connection.execute(f"INSERT INTO staff (id) VALUES ({interaction.user.id})")
             await interaction.followup.send('Profile creation was successful for your account.', ephemeral=True)
         else:
             await RoleChecker(interaction, interaction.user)
             results2 = await RoleChecker(interaction, user) 
             if results2 == True:
-                Cursor.execute(f"insert into staff (id) values ({user.id})")
-                connection.commit()
+                await connection.execute(f"INSERT INTO staff (id) VALUES ({interaction.user.id})")
                 await interaction.followup.send(f'Profile creation was successful for {user}.', ephemeral=True)
             else:
                 await interaction.followup.send(f'{user} is not a Staff Member, you can only set up a profile for Staff Members.', ephemeral=True)
