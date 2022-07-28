@@ -1260,11 +1260,12 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     await interaction.response.defer(thinking=True, ephemeral=True)
     await RoleChecker(interaction, interaction.user)
     results = await RoleChecker(interaction, interaction.user)
-    query = await connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
-    if user == None and query == interaction.user.id:
+    query1 = await connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
+    query2 = await connection.fetchval('SELECT id FROM staff WHERE id = $1', user.id)
+    if user == None and query1 == interaction.user.id:
         await interaction.followup.send("You already have a profile on the Database.", ephemeral=True)
         return
-    elif user and query == user.id:
+    elif user and query2 == user.id:
         await interaction.followup.send("This user already have a profile on the Database.", ephemeral=True)
         return
     # _____ Variabls ______ #
