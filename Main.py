@@ -1279,7 +1279,7 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
             await RoleChecker(interaction, interaction.user)
             results2 = await RoleChecker(interaction, user) 
             if results2 == True:
-                await connection.execute(f"INSERT INTO staff (id) VALUES ({interaction.user.id})")
+                await connection.execute(f"INSERT INTO staff (id) VALUES ({user.id})")
                 await interaction.followup.send(f'Profile creation was successful for {user}.', ephemeral=True)
             else:
                 await interaction.followup.send(f'{user} is not a Staff Member, you can only set up a profile for Staff Members.', ephemeral=True)
