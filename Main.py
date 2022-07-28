@@ -56,7 +56,6 @@ from discord.app_commands import CommandTree
 client = Client(os.environ['Roblox_TOKEN'])
 Client_Bot = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client_Bot.remove_command("help")
-database_connection = asyncpg.connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password']) 
 Guild = object()
 
 Blacklisted = []
@@ -1257,6 +1256,7 @@ group_profile = app_commands.Group(name="profile", description="Profile related 
 @group_profile.command(description='Set up a profile for Staff Member!', name='create')
 @app_commands.describe(user='Which Staff Member is the profile for.')
 async def create(interaction: discord.Interaction, user: discord.Member = None):
+    connection = await asyncpg.connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password']) 
     await interaction.response.defer(thinking=True, ephemeral=True)
     await RoleChecker(interaction, interaction.user)
     results = await RoleChecker(interaction, interaction.user)
@@ -1274,14 +1274,14 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     if results == True or interaction.user.guild_permissions.administrator:
         if user == None:
             Cursor.execute(f"insert into staff (id) values ({interaction.user.id})")
-            database_connection.commit()
+            connection.commit()
             await interaction.followup.send('Profile creation was successful for your account.', ephemeral=True)
         else:
             await RoleChecker(interaction, interaction.user)
             results2 = await RoleChecker(interaction, user) 
             if results2 == True:
                 Cursor.execute(f"insert into staff (id) values ({user.id})")
-                database_connection.commit()
+                connection.commit()
                 await interaction.followup.send(f'Profile creation was successful for {user}.', ephemeral=True)
             else:
                 await interaction.followup.send(f'{user} is not a Staff Member, you can only set up a profile for Staff Members.', ephemeral=True)
@@ -1300,8 +1300,8 @@ async def view(interaction: discord.Interaction, user: discord.Member):
 
 @group_profile.command(description='Testing Command.', name='test')
 async def terst(interaction: discord.Interaction):
-    
-    value = await database_connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
+    connection = await asyncpg.connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password']) 
+    value = await connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
     await interaction.response.send_message(value)
 
 tree.add_command(group_profile, guild=discord.Object(id=995332563281383508))
