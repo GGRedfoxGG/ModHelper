@@ -56,7 +56,7 @@ from discord.app_commands import CommandTree
 client = Client(os.environ['Roblox_TOKEN'])
 Client_Bot = commands.Bot(command_prefix=',',case_insensitive=True,intents=discord.Intents.all())
 Client_Bot.remove_command("help")
-Database = asyncpg.connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password']) 
+database_connection = asyncpg.connect(host="containers-us-west-90.railway.app", database="railway", user="postgres", password=os.environ['Password']) 
 Guild = object()
 
 Blacklisted = []
@@ -1274,14 +1274,14 @@ async def create(interaction: discord.Interaction, user: discord.Member = None):
     if results == True or interaction.user.guild_permissions.administrator:
         if user == None:
             Cursor.execute(f"insert into staff (id) values ({interaction.user.id})")
-            Database.commit()
+            database_connection.commit()
             await interaction.followup.send('Profile creation was successful for your account.', ephemeral=True)
         else:
             await RoleChecker(interaction, interaction.user)
             results2 = await RoleChecker(interaction, user) 
             if results2 == True:
                 Cursor.execute(f"insert into staff (id) values ({user.id})")
-                Database.commit()
+                database_connection.commit()
                 await interaction.followup.send(f'Profile creation was successful for {user}.', ephemeral=True)
             else:
                 await interaction.followup.send(f'{user} is not a Staff Member, you can only set up a profile for Staff Members.', ephemeral=True)
@@ -1299,10 +1299,11 @@ async def view(interaction: discord.Interaction, user: discord.Member):
     await interaction.response.send_message('Coming Soon')
 
 @group_profile.command(description='Testing Command.', name='test')
-async def test(interaction: discord.Interaction):
-    async with Database.transaction():
-        value = await Database.execute('SELECT id FROM staff WHERE id = $1', (interaction.user.id,))
-        await interaction.response.send_message(value)
+async def terst(interaction: discord.Interaction):
+    
+    value = await database_connection.fetchval('SELECT id FROM staff WHERE id = $1', interaction.user.id)
+    await interaction.response.send_message(value)
+asyncio.get_event_loop().run_until_complete(terst())
 tree.add_command(group_profile, guild=discord.Object(id=995332563281383508))
 
 
