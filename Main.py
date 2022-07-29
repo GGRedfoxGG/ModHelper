@@ -753,8 +753,18 @@ async def set(interaction: discord.Interaction):
 group_set = app_commands.Group(name="set", description="Management related Command!")
 
 @group_set.command(description='Sets inactivity notice for staff!', name='inactivity')
-@app_commands.describe(start_date='When is your inactivity starts.', end_date='When is your inactivity ends.', reason='What is the reason for your inactivity.', note='Anything you wanted to add.')
-async def inactivity(interaction: discord.Interaction, start_date: str, end_date: str, reason: str, note: str = None):
+@app_commands.describe(start_date='When is your inactivity starts.', end_date='When is your inactivity ends.', reason='What is the reason for your inactivity.', note='Anything you wanted to add.', username='What is your Roblox username.')
+async def inactivity(interaction: discord.Interaction, username: str,start_date: str, end_date: str, reason: str, note: str = None):
+    today = datetime.today()
+    Time2 = None
+    BigSize = False
+    Time3 = f'{today.timestamp()}'
+    code1 = secrets.token_hex(4)
+    code2 = secrets.token_hex(4)
+    code3 = secrets.token_hex(4)
+    code4 = secrets.token_hex(4)
+    for i in Time3.splitlines():
+        Time2 = i.split('.')[0]
     await RoleChecker(interaction, interaction.user)
     results = await RoleChecker(interaction, interaction.user)
     class Button(discord.ui.View):
@@ -837,16 +847,32 @@ Created at: <t:{Time2}:F> <t:{Time2}:R>
     if results == True or interaction.user.guild_permissions.administrator:
         view2 = Button2(timeout=15780000)
         view = Button(timeout=15780000)
-        notice = discord.Embed(title='Inactivity Notice', description=
-f'''
+
+        fetched_data = await client.get_user_by_username(username)
+        if fetched_data:
+            totalstamp = f'{fetched_data.created.timestamp()}'
+            for i in totalstamp:
+                timestamp1 = totalstamp.split('.')[0]
+            user_thumbnails = await client.thumbnails.get_user_avatar_thumbnails(users=[fetched_data], type=AvatarThumbnailType.headshot, size=(420, 420))
+            notice = discord.Embed(title=f'Inactivity Code: {code1}-{code2}-{code3}-{code4}', description=f"""
 <:dot:997510484112724109> Start Date: {start_date}
 <:dot:997510484112724109> End Date: {end_date}
-
-        
-           ''', color=0xff4649)
-        notice.add_field(name='Reason:', value=reason, inline=False)
-        notice.add_field(name='Note:', value=note, inline=False)
-        message = await interaction.response.send_message(embed=notice, view=view2, ephemeral=True)
+        """, color=0xff4649)
+            notice.add_field(name='Reason:', value=reason, inline=False)
+            notice.add_field(name='Note:', value=note, inline=False)
+            notice.add_field(name='Inactivity creation date?:', value=f'<t:{Time2}:F>', inline=False)
+            notice.add_field(name='Roblox User Information:', value=f"""
+Roblox Username: [{fetched_data.name}](https://www.roblox.com/users/{fetched_data.id}/profile)
+Roblox ID: `{fetched_data.id}`
+Display Name: `{fetched_data.display_name}`
+Creation Date: <t:{timestamp1}:F>
+Description: `{fetched_data.description}`
+            """)
+            notice.set_footer(text=f'Notice by {interaction.user} • {today.day}/{today.month}/{today.year}', icon_url=interaction.user.avatar.url)
+            notice.set_thumbnail(url=user_thumbnails[0].image_url)
+            await interaction.response.send_message(embed=notice, view=view2, ephemeral=True)
+        else:
+            await interaction.response.send_message('Invalid Roblox User!', ephemeral=True)
     
 tree.add_command(group_set, guild=discord.Object(id=995332563281383508))
 
@@ -1333,7 +1359,7 @@ tree.add_command(group_profile, guild=discord.Object(id=995332563281383508))
 #______________
 
 @tree.command(guild=discord.Object(id=995332563281383508), description='Fetch user information!')
-@app_commands.describe(username= 'The Username of the Suspect.',reason='What did they do.', note='Anything you want to add.', evidence='Evidence for your claims (links only)')
+@app_commands.describe(username= 'The Username of the Suspect.',reason='What did they do.', note='Anything you want to add.', evidence='Evidence for your claims (links only)', severity='How severe is the situation')
 async def report(interaction: discord.Interaction, username: str, reason: Literal['Exploiting', 'Advertising', 'Excessive Spam', 'Inappropriate/Discriminatory Username/Display name', 'Misuse of Custom Kill Sound', 'Discriminatory Remarks', 'Inappropriate Remarks', 'Nudity', 'Inappropriate Avatar', 'Intentionally Impersonating a Community Member', 'Admission of the use of Exploits', 'Distribution of Exploits', 'Death Threats', 'Predatory Behaviour', 'Buying/Selling Accounts', 'Intentionally Impersonating a Staff Member', 'Stealing Works of Others', 'Grab/Leak Classified/Private Information', 'DDoS Attack/Threat', 'Bribery', 'Ban Evasion'], severity: Literal['Minor', 'Moderate', 'Major', 'Severe'],evidence: str, note: str = None):
     today = datetime.today()
     Time2 = None
@@ -1354,7 +1380,7 @@ async def report(interaction: discord.Interaction, username: str, reason: Litera
             List.append(word)
     channel = interaction.guild.get_channel(1002620121694605476)
     class Button(discord.ui.View):
-        @discord.ui.button(label='Banned', style=discord.ButtonStyle.green)
+        @discord.ui.button(label='Banned', style=discord.ButtonStyle.red)
         async def approve_button(self, interaction2: discord.Interaction,approve: discord.ui.Button):  
             await RoleChecker(interaction, interaction.user)
             results2 = await RoleChecker(interaction, interaction.user)
@@ -1366,7 +1392,7 @@ async def report(interaction: discord.Interaction, username: str, reason: Litera
                 await interaction2.response.edit_message(view=view)
             else:
                 await interaction2.response.send_message("You're not allowed to use this command", ephemeral=True)
-        @discord.ui.button(label='Revoke', style=discord.ButtonStyle.red)
+        @discord.ui.button(label='Revoke', style=discord.ButtonStyle.green)
         async def deny_button(self, interaction2: discord.Interaction,deny: discord.ui.Button):  
             await RoleChecker(interaction, interaction.user)
             results2 = await RoleChecker(interaction, interaction.user)
@@ -1468,7 +1494,7 @@ Description: `{fetched_data.description}`
         
         
         """, inline=False)
-        Log.set_footer(text=f'Moderation by {interaction.user} • {today.day}/{today.month}/{today.year}', icon_url=interaction.user.avatar.url)
+        Log.set_footer(text=f'Report by {interaction.user} • {today.day}/{today.month}/{today.year}', icon_url=interaction.user.avatar.url)
         Log.set_thumbnail(url=user_thumbnails[0].image_url)
         view2 = Button2(timeout=15780000)
         view = Button(timeout=15780000)
