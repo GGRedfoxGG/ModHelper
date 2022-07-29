@@ -12,6 +12,7 @@ from unicodedata import name
 from urllib import response
 from discord import ChannelType, Embed, InteractionResponse, Object, __version__ as discord_version, ui
 from httpcore import Origin
+from httpx import RequestNotRead
 from psutil import Process, virtual_memory
 import datetime
 from datetime import datetime, timedelta, date
@@ -639,9 +640,9 @@ async def testing(interaction: discord.Interaction):
 async def temp(interaction: discord.Interaction):
     await interaction.response.send_message("Temp Command Activated",ephemeral=True)
 
-group = app_commands.Group(name="temporary", description="Creates a temporary Channel/Voice/Role!")
+group_temp = app_commands.Group(name="temporary", description="Creates a temporary Channel/Voice/Role!")
 
-@group.command(description='Creates a temporary Channel/Voice/Role!', name='create')
+@group_temp.command(description='Creates a temporary Channel/Voice/Role!', name='create')
 @app_commands.describe(data_type='What do you want to create.', length='For how long do you want it to last.', name='What do you want to call it.')
 async def create(interaction: discord.Interaction, data_type: Literal['Channel', 'Voice', 'Role'], length: str, name: str = None):
     await RoleChecker(interaction, interaction.user)
@@ -673,7 +674,7 @@ async def create(interaction: discord.Interaction, data_type: Literal['Channel',
         await MissingPermission(interaction, interaction.user)
 
 
-tree.add_command(group, guild=discord.Object(id=995332563281383508))
+tree.add_command(group_temp, guild=discord.Object(id=995332563281383508))
 
 
 @tree.command()
@@ -875,7 +876,7 @@ async def feedback(interaction: discord.Interaction, anonymous: Literal['True', 
     await interaction.response.send_modal(feedback_page())
 
 @tree.command(guild=discord.Object(id=995332563281383508), description='Calculate how much USD is to Robux!')
-@app_commands.describe(payment_method= 'Fees and Payment method for the exchange.',value='What is the value you are trying to calculate.', currency='What is the currency you want to convert into.')
+@app_commands.describe(payment_method= 'Fees and Payment method for the exchange.',value='What is the value you are trying to calculate.', currency='What is the currency you want to convert from.')
 async def devex(interaction: discord.Interaction, currency: Literal['USD', 'Robux'],value: int, payment_method: Literal['Paypal', 'Wire Transfer', 'Check', 'Local bank / SEPA transfer / eCheck'] = None):
     today = date.today()
     if currency == 'Robux':
@@ -1303,18 +1304,182 @@ async def remove(interaction: discord.Interaction, user: discord.Member):
 @group_profile.command(description='View the profile of the chosen Staff Member.', name='view')
 @app_commands.describe(user='Which Staff Member do you want to view.')
 async def view(interaction: discord.Interaction, user: discord.Member):
-    await interaction.response.send_message('Coming Soon')
+    await interaction.response.defer(thinking=True, ephemeral=True)
+    if user == None:
+        home = discord.Embed(title='Home Page', description=f"""
+Welcome {interaction.user} to your profile: _ _
+
+<:dot:997510484112724109> All information displayed here is **classified**.
+<:dot:997510484112724109> Don't release any information displayed here.
+<:dot:997510484112724109> Releasing anything will result in a penalty   
+
+    """)
+        await interaction.followup.send(embed=home)
+    else:
+        home = discord.Embed(title='Home Page', description=f"""
+Welcome {interaction.user} to {user}'s profile: _ _
+
+<:dot:997510484112724109> All information displayed here is **classified**.
+<:dot:997510484112724109> Don't release any information displayed here.
+<:dot:997510484112724109> Releasing anything will result in a penalty   
+
+    """)
+    await interaction.followup.send(embed=home)
 
 
 tree.add_command(group_profile, guild=discord.Object(id=995332563281383508))
 
 
+#______________
+
+@tree.command(guild=discord.Object(id=995332563281383508), description='Fetch user information!')
+@app_commands.describe(username= 'The Username of the Suspect.',reason='What did they do.', note='Anything you want to add.', evidence='Evidence for your claims (links only)')
+async def report(interaction: discord.Interaction, username: str, reason: Literal['Exploiting', 'Advertising', 'Excessive Spam', 'Inappropriate/Discriminatory Username/Display name', 'Misuse of Custom Kill Sound', 'Discriminatory Remarks', 'Inappropriate Remarks', 'Nudity', 'Inappropriate Avatar', 'Intentionally Impersonating a Community Member', 'Admission of the use of Exploits', 'Distribution of Exploits', 'Death Threats', 'Predatory Behaviour', 'Buying/Selling Accounts', 'Intentionally Impersonating a Staff Member', 'Stealing Works of Others', 'Grab/Leak Classified/Private Information', 'DDoS Attack/Threat', 'Bribery', 'Ban Evasion'], severity: Literal['Minor', 'Moderate', 'Major', 'Severe'],evidence: str, note: str = None):
+    today = datetime.today()
+    Time2 = None
+    BigSize = False
+    Time3 = f'{today.timestamp()}'
+    code1 = secrets.token_hex(4)
+    code2 = secrets.token_hex(4)
+    code3 = secrets.token_hex(4)
+    code4 = secrets.token_hex(4)
+    for i in Time3.splitlines():
+        Time2 = i.split('.')[0]
+    List = []
+    NumberNew = 0
+    evidence_split = evidence.split()
+    for word in evidence_split:
+        if word.startswith('https'):
+            NumberNew = NumberNew + 1
+            List.append(word)
+    channel = interaction.guild.get_channel(1002620121694605476)
+    class Button(discord.ui.View):
+        @discord.ui.button(label='Banned', style=discord.ButtonStyle.green)
+        async def approve_button(self, interaction2: discord.Interaction,approve: discord.ui.Button):  
+            await RoleChecker(interaction, interaction.user)
+            results2 = await RoleChecker(interaction, interaction.user)
+
+            if results2 == True:
+                approve.label = F'Banned by {interaction2.user}'
+                for child in view.children:
+                    child.disabled = True
+                await interaction2.response.edit_message(view=view)
+            else:
+                await interaction2.response.send_message("You're not allowed to use this command", ephemeral=True)
+        @discord.ui.button(label='Revoke', style=discord.ButtonStyle.red)
+        async def deny_button(self, interaction2: discord.Interaction,deny: discord.ui.Button):  
+            await RoleChecker(interaction, interaction.user)
+            results2 = await RoleChecker(interaction, interaction.user)
+
+            if results2 == True:
+                deny.label = F'Revoked by {interaction2.user}'
+                for child in view.children:
+                    child.disabled = True
+                await interaction2.response.edit_message(view=view)
+            else:
+                await interaction2.response.send_message("You're not allowed to use this command", ephemeral=True)
+        @discord.ui.button(label='Get User', style=discord.ButtonStyle.blurple)
+        async def user_button(self, interaction2: discord.Interaction,user: discord.ui.Button):  
+            member = interaction.user
+            Time3 = f'{member.created_at.timestamp()}'
+            Time2 = None
+            for i in Time3.splitlines():
+                Time2 = i.split('.')[0]
+
+            Main = discord.Embed(title="**User Information**", description=f"Information on <@{member.id}>: ")
+            Main.add_field(name='Discord: ', value=f'''
+User Id: {member.id}
+User Tag: {member}
+User: <@{member.id}>
+Nickname: {member.display_name}
+Created at: <t:{Time2}:F> <t:{Time2}:R>
+            ''', inline=True)
+            await interaction2.response.send_message(embed=Main, ephemeral=True)
+            Main.set_author(name=f'{member.id}', icon_url=member.avatar.url)
+            Main.set_thumbnail(url=member.avatar.url)
+        @discord.ui.button(label=f'Report from {interaction.user}/{interaction.user.id}', style=discord.ButtonStyle.gray, disabled=True)
+        async def notice_from(self, interaction2: discord.Interaction,notice: discord.ui.Button):  
+            await interaction2.response.send_message('If you get this message report it to the system developer!', ephemeral=True)
+        def __init__(self, timeout):
+            super().__init__(timeout=timeout)
+            self.response = None 
+        async def on_timeout(self):
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self) 
+    
+    class Button2(discord.ui.View):
+        @discord.ui.button(label='Post', style=discord.ButtonStyle.green)
+        async def approve_button(self, interaction3: discord.Interaction,approve: discord.ui.Button):  
+            for v in view2.children:
+                v.disabled = True
+            await channel.send(embed=Log, view=view)
+            await interaction3.response.edit_message(view=view2)
+        @discord.ui.button(label='Reject', style=discord.ButtonStyle.red)
+        async def deny_button(self, interaction3: discord.Interaction,deny: discord.ui.Button):  
+            for v in view2.children:
+                v.disabled = True
+            await interaction3.response.edit_message(view=view2)
+        def __init__(self, timeout):
+            super().__init__(timeout=timeout)
+            self.response = None 
+
+        async def on_timeout(self):
+            for child in self.children: 
+                child.disabled = True
+            await self.message.edit(view=self) 
+    # _____ Setup _____ #
+
+    fetched_data = await client.get_user_by_username(username)
+    if fetched_data:
+        totalstamp = f'{fetched_data.created.timestamp()}'
+        for i in totalstamp:
+            timestamp1 = totalstamp.split('.')[0]
+        user_thumbnails = await client.thumbnails.get_user_avatar_thumbnails(users=[fetched_data], type=AvatarThumbnailType.headshot, size=(420, 420))
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        Log = discord.Embed(title=f'Report Code: {code1}-{code2}-{code3}-{code4}', description=f"""
+<:dot:997510484112724109> Report Date: <t:{Time2}:F>
+<:dot:997510484112724109> Severity: `{severity}`
+        """, color=0xfc393a)
+        Log.add_field(name='Reason:', value=reason, inline=True)
+        if NumberNew == 0:
+            Log.add_field(name='Files: ', value='<:dot:997510484112724109> None', inline=True)
+        elif NumberNew == 1:
+            Log.add_field(name='Files: ', value=f'<:dot:997510484112724109> [File]({List[0]})', inline=True)
+        elif NumberNew == 2:
+            Log.add_field(name='Files: ', value=f'<:dot:997510484112724109> [File]({List[0]}) / [File]({List[1]})', inline=True)
+        elif NumberNew == 3:
+            Log.add_field(name='Files: ', value=f'<:dot:997510484112724109> [File]({List[0]}) / [File]({List[1]}) / [File]({List[2]})', inline=True)
+        elif NumberNew == 4: 
+            Log.add_field(name='Files: ', value=f'<:dot:997510484112724109> [File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]})', inline=True)
+        elif NumberNew == 5:
+            Log.add_field(name='Files: ', value=f'<:dot:997510484112724109> [File]({List[0]}) / [File]({List[1]}) / [File]({List[2]}) / [File]({List[3]}) / [File]({List[4]})', inline=True)
+        else:
+            BigSize = True
+
+        Log.add_field(name='Note:', value=note, inline=False)
+        Log.add_field(name='Who Reported?:', value=f'{interaction.user.mention}/{interaction.user.id}', inline=False)
+        Log.add_field(name='User Information:', value=f"""
+Roblox Username: [{fetched_data.name}](https://www.roblox.com/users/{fetched_data.id}/profile)
+Roblox ID: `{fetched_data.id}`
+Display Name: `{fetched_data.display_name}`
+Creation Date: <t:{timestamp1}:F>
+Description: `{fetched_data.description}`
+        
+        
+        """, inline=False)
+        Log.set_footer(text=f'Moderation by {interaction.user} • {today.day}/{today.month}/{today.year}', icon_url=interaction.user.avatar.url)
+        Log.set_thumbnail(url=user_thumbnails[0].image_url)
+        view2 = Button2(timeout=15780000)
+        view = Button(timeout=15780000)
+        if BigSize == True:
+            await interaction.followup.send('Too many files/links (Only 5).', ephemeral=True)
+        else:
+            await interaction.followup.send(embed=Log, ephemeral=True, view=view2)
+    else:
+        await interaction.response.send_message('Invalid User!', ephemeral=True)
+
+
 Client_Bot.run(os.environ['Token']) 
 
 
-#    Selected_Code = "select thing from strike_logs"
-#    Cursor.execute(Selected_Code)
-#    records = Cursor.fetchall()
-
-#    Cursor.execute(f"insert into ticket_logs (ticket) values ({random.randint(0,999999999999999999)})")
-#    Database.commit()
